@@ -5,8 +5,10 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using WaferInspectHMI.Models;
+using WaferInspectHMI.ViewModels;
 
-namespace WaferInspectHMI;
+namespace WaferInspectHMI.Views;
 
 public partial class MainWindow : Window
 {
@@ -79,6 +81,14 @@ public partial class MainWindow : Window
         {
             if (tb.DataContext is NavItem || tb.DataContext is NavGroup)
                 tb.Visibility = _navCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        }
+        // 图标条模式下分组标题压缩为居中的箭头按钮，仍可独立展开 / 收起。
+        foreach (var btn in FindVisualChildren<Button>(Sidebar))
+        {
+            if (btn.Tag is not string tag || tag != "NavGroupToggle") continue;
+            btn.Width = _navCollapsed ? 40 : double.NaN;
+            btn.HorizontalAlignment = _navCollapsed ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+            btn.Padding = _navCollapsed ? new Thickness(0) : new Thickness(10, 0, 10, 0);
         }
         _vm.ShowNotification(_navCollapsed ? "导航栏已收起为图标模式" : "导航栏已展开");
     }

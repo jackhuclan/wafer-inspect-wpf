@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
 
-namespace WaferInspectHMI;
+namespace WaferInspectHMI.Models;
 
 public abstract class Observable : INotifyPropertyChanged
 {
@@ -36,10 +36,36 @@ public sealed class NavItem : Observable
     }
 }
 
-public sealed class NavGroup
+/// <summary>可独立展开 / 收起的导航组；折叠只影响可见性，不改变组内选中态。</summary>
+public sealed class NavGroup : Observable
 {
+    public string Key { get; init; }
     public string Title { get; init; }
     public List<NavItem> Items { get; init; }
+
+    private bool _isExpanded = true;
+
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (Set(ref _isExpanded, value))
+            {
+                Raise(nameof(ExpansionHint));
+                Raise(nameof(SelectionHint));
+            }
+        }
+    }
+
+    /// <summary>组内是否存在当前选中项：折叠时由标题上的蓝点继续提示。</summary>
+    public bool HasSelection => Items?.Any(item => item.IsSelected) == true;
+
+    public string ItemCountText => $"{Items?.Count ?? 0} 项";
+
+    public string ExpansionHint => IsExpanded ? "点击收起此分组" : "点击展开此分组";
+
+    public string SelectionHint => HasSelection ? "当前选中项在本组" : string.Empty;
 }
 
 public sealed class DieItem

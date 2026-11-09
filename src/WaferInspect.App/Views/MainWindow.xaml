@@ -1,4 +1,4 @@
-<Window x:Class="WaferInspectHMI.MainWindow"
+<Window x:Class="WaferInspectHMI.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -226,8 +226,14 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel>
-                                        <TextBlock Text="{Binding Title}" Style="{StaticResource NavGroupLabel}"/>
-                                        <ItemsControl ItemsSource="{Binding Items}">
+                                        <Button Tag="NavGroupToggle" Style="{StaticResource NavGroupToggle}"
+                                                ToolTip="{Binding ExpansionHint}"
+                                                Command="{Binding DataContext.ToggleGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding Key}">
+                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </Button>
+                                        <ItemsControl ItemsSource="{Binding Items}"
+                                                      Visibility="{Binding IsExpanded, Converter={StaticResource BoolVis}}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <RadioButton Style="{StaticResource NavRadio}"

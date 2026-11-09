@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace WaferInspectHMI;
+namespace WaferInspectHMI.Converters;
 
 /// <summary>布尔值 → 可见性（false 时折叠，不占位）。</summary>
 public sealed class BoolToVisibilityConverter : IValueConverter

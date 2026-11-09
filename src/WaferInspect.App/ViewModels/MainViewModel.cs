@@ -6,8 +6,11 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using WaferInspect.Core.Navigation;
+using WaferInspectHMI.Models;
+using WaferInspectHMI.Navigation;
 
-namespace WaferInspectHMI;
+namespace WaferInspectHMI.ViewModels;
 
 /// <summary>轻量 ICommand 实现，避免引入额外 MVVM 依赖。</summary>
 public sealed class RelayCommand : ICommand
@@ -58,7 +61,8 @@ public sealed class MainViewModel : Observable
         BuildDies();
         BuildModuleTable("overview");
 
-        NavigateCommand = new RelayCommand(p => Navigate(p as string ?? "overview"));
+        NavigateCommand = new RelayCommand(p => Navigate(p as string ?? NavConfiguration.DefaultViewKey));
+        ToggleGroupCommand = new RelayCommand(p => ToggleGroup(p as string));
         AckCommand = new RelayCommand(p => Ack(p as string));
         AckAllCommand = new RelayCommand(_ => AckAll(), _ => UnackedCount > 0);
         NewTaskCommand = new RelayCommand(_ => AddTask());
@@ -76,6 +80,7 @@ public sealed class MainViewModel : Observable
 
     /* ---------------- 命令 ---------------- */
     public ICommand NavigateCommand { get; }
+    public ICommand ToggleGroupCommand { get; }
     public ICommand AckCommand { get; }
     public ICommand AckAllCommand { get; }
     public ICommand NewTaskCommand { get; }
@@ -143,33 +148,20 @@ public sealed class MainViewModel : Observable
 
     private void BuildNav()
     {
-        NavGroups = new List<NavGroup>
-        {
-            new() { Title = "工作台", Items = new List<NavItem>
-            {
-                new() { Key = "overview", Label = "运行总览", Icon = G("M3 12h4l3-7 4 14 3-7h4"), IsSelected = true },
-                new() { Key = "live",     Label = "实时监控", Icon = G("M2 12h4l3-6 4 12 3-6h6"), Badge = "LIVE" }
-            }},
-            new() { Title = "检测业务", Items = new List<NavItem>
-            {
-                new() { Key = "tasks",    Label = "检测任务", Icon = G("M3 4h18v16H3z M8 9h8 M8 13h8 M8 17h5"), Badge = "3" },
-                new() { Key = "wafer",    Label = "晶圆地图", Icon = G("M3 12h18 M12 3v18 M5 7l14 10 M19 7L5 17") },
-                new() { Key = "defects",  Label = "缺陷分析", Icon = G("M4 4h16v16H4z M9 9h6v6H9z") },
-                new() { Key = "reports",  Label = "结果报表", Icon = G("M4 20V4 M4 20h16 M8 16v-4 M12 16V8 M16 16v-6 M20 16V7") }
-            }},
-            new() { Title = "设备与配置", Items = new List<NavItem>
-            {
-                new() { Key = "devices",      Label = "设备管理",   Icon = G("M5 5h14v14H5z M9 9h6v6H9z M9 2v3 M15 2v3 M9 19v3 M15 19v3 M2 9h3 M2 15h3 M19 9h3 M19 15h3") },
-                new() { Key = "recipes",      Label = "配方管理",   Icon = G("M4 7h16 M4 12h16 M4 17h16 M9 4v6 M15 10v6") },
-                new() { Key = "calibration",  Label = "标定与校验", Icon = G("M12 3l8 3v6h-8V3z M4 12h16v9H4z M9 16h6") }
-            }},
-            new() { Title = "系统", Items = new List<NavItem>
-            {
-                new() { Key = "alarms",   Label = "告警中心",   Icon = G("M6 16h12l-2-3V9H8v4l-2 3z M10 19h4"), Badge = "3" },
-                new() { Key = "users",    Label = "用户与权限", Icon = G("M6 5h6v6H6z M3 20v-2h12v2 M17 7h4v4h-4z M16 20v-2h6v2") },
-                new() { Key = "settings", Label = "系统设置",   Icon = G("M4 7h16 M4 12h16 M4 17h16 M9 4v6 M15 10v6") }
-            }}
-        };
+        NavGroups = NavGroupFactory.Create(NavConfiguration.DefaultViewKey);
+    }
+
+    /// <summary>切换单个分组的展开状态；选中项与当前视图保持不变。</summary>
+    private void ToggleGroup(string key)
+    {
+        var group = NavGroups.FirstOrDefault(g => g.Key == key);
+        if (group == null) return;
+
+        group.IsExpanded = !group.IsExpanded;
+        StatusMessage = group.IsExpanded
+            ? $"已展开导航分组：{group.Title}"
+            : $"已收起导航分组：{group.Title}（选中项保持不变）";
+        Raise(nameof(StatusMessage));
     }
 
     private static SolidColorBrush B(string hex) => (SolidColorBrush)new BrushConverter().ConvertFrom(hex);
@@ -400,6 +392,15 @@ public sealed class MainViewModel : Observable
     {
         _currentView = key;
         foreach (var item in NavGroups.SelectMany(g => g.Items)) item.IsSelected = item.Key == key;
+
+        // 折叠不影响选中态：目标视图若位于已收起的分组，导航时自动展开，保证选中项可见。
+        var targetKey = NavConfiguration.GroupKeyOf(key);
+        if (targetKey != null)
+        {
+            var targetGroup = NavGroups.FirstOrDefault(g => g.Key == targetKey);
+            if (targetGroup != null && !targetGroup.IsExpanded) targetGroup.IsExpanded = true;
+        }
+        foreach (var group in NavGroups) group.Raise(nameof(NavGroup.HasSelection));
 
         (PageTitle, PageCrumb, PageSubtitle) = key switch
         {

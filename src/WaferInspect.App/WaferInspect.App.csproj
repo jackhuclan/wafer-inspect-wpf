@@ -1,13 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>WaferInspectHMI</AssemblyName>
     <RootNamespace>WaferInspectHMI</RootNamespace>
-    <LangVersion>latest</LangVersion>
     <EnableDefaultApplicationDefinition>true</EnableDefaultApplicationDefinition>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../WaferInspect.Core/WaferInspect.Core.csproj" />
+  </ItemGroup>
+
 </Project>

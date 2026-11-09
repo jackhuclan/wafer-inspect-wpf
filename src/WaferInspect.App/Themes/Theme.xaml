@@ -1,6 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:local="clr-namespace:WaferInspectHMI">
+                    xmlns:local="clr-namespace:WaferInspectHMI.Converters">
 
     <local:BoolToVisibilityConverter x:Key="BoolVis"/>
     <local:BoolToCollapsedConverter x:Key="BoolCollapsed"/>
@@ -113,11 +113,72 @@
     </Style>
 
     <!-- ============ 侧栏功能项 ============ -->
-    <Style x:Key="NavGroupLabel" TargetType="TextBlock">
-        <Setter Property="Margin" Value="20,12,0,7"/>
+    <!-- ============ 分组标题：展开 / 折叠 / 选中反馈 ============ -->
+    <Style x:Key="NavGroupToggle" TargetType="Button">
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Margin" Value="8,10,8,4"/>
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="Foreground" Value="#8299B6"/>
         <Setter Property="FontSize" Value="10.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="#6F88A8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 折叠态底色：仅收起时可见 -->
+                            <Rectangle Grid.ColumnSpan="4" RadiusX="6" RadiusY="6" Fill="#0BFFFFFF"
+                                       Visibility="{Binding IsExpanded, Converter={StaticResource BoolCollapsed}}"/>
+
+                            <!-- 展开 / 折叠两套箭头，避免 bool DataTrigger 的类型歧义 -->
+                            <Path Grid.Column="0" Width="9" Height="9" Stretch="Uniform" Margin="0,0,8,0"
+                                  Data="M2 4l4 4 4-4" Stroke="{TemplateBinding Foreground}"
+                                  StrokeThickness="1.6" StrokeLineJoin="Round" StrokeEndLineCap="Round"
+                                  Visibility="{Binding IsExpanded, Converter={StaticResource BoolVis}}"/>
+                            <Path Grid.Column="0" Width="9" Height="9" Stretch="Uniform" Margin="0,0,8,0"
+                                  Data="M4 2l4 4-4 4" Stroke="{TemplateBinding Foreground}"
+                                  StrokeThickness="1.6" StrokeLineJoin="Round" StrokeEndLineCap="Round"
+                                  Visibility="{Binding IsExpanded, Converter={StaticResource BoolCollapsed}}"/>
+
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+
+                            <!-- 折叠后仍提示"当前选中项在本组" -->
+                            <Ellipse Grid.Column="2" Width="6" Height="6" Fill="#5B9BFF" Margin="0,0,7,0"
+                                     VerticalAlignment="Center" ToolTip="当前选中项在本组"
+                                     Visibility="{Binding HasSelection, Converter={StaticResource BoolVis}}"/>
+
+                            <!-- 折叠态显示组内项数 -->
+                            <TextBlock Grid.Column="3" Text="{Binding ItemCountText}" FontSize="9.5"
+                                       FontWeight="Normal" Foreground="#7D93AF" VerticalAlignment="Center"
+                                       Visibility="{Binding IsExpanded, Converter={StaticResource BoolCollapsed}}"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#16FFFFFF"/>
+                            <Setter Property="Foreground" Value="#E2ECF8"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#24FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#1C4F8DF7"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="NavRadio" TargetType="RadioButton">
