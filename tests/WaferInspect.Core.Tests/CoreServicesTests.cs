@@ -26,7 +26,7 @@ public sealed class CoreServicesTests
         Assert.Same(catalog, host.Services.GetRequiredService<INavigationCatalog>());
         Assert.Same(simulation, host.Services.GetRequiredService<ISimulationData>());
         Assert.Equal(4, catalog.Groups.Count);
-        Assert.Equal(12, catalog.Groups.Sum(group => group.Items.Count));
+        Assert.Equal(14, catalog.Groups.Sum(group => group.Items.Count));
         Assert.Equal("overview", catalog.DefaultViewKey);
         Assert.Equal("system", catalog.GroupKeyOf("alarms"));
         Assert.Null(catalog.GroupKeyOf("missing-view"));

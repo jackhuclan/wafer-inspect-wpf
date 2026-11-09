@@ -1,5 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using WaferInspect.Core.Data;
+using WaferInspect.Core.Devices;
+using WaferInspect.Core.Events;
+using WaferInspect.Core.Maps;
 using WaferInspect.Core.Navigation;
+using WaferInspect.Core.Security;
 using WaferInspect.Core.Simulation;
 
 namespace WaferInspect.Core.DependencyInjection;
@@ -16,6 +21,12 @@ public static class CoreServiceCollectionExtensions
 
         services.AddSingleton<INavigationCatalog, NavigationCatalog>();
         services.AddSingleton<ISimulationData, SimulationData>();
+        services.AddSingleton<IDataSource>(provider => provider.GetRequiredService<ISimulationData>());
+        services.AddSingleton<IMapRenderer, WaferMapRenderer>();
+        services.AddSingleton<IEventSource, InMemoryEventSource>();
+        services.AddSingleton<IAuthorizationService, AuthorizationService>();
+        services.AddSingleton<IDeviceCommandLayer, DeviceCommandLayer>();
+        // 【待确认 T-029】不注册虚构的 IDeviceGateway 生产实现；由确认协议后的适配器提供。
         return services;
     }
 }

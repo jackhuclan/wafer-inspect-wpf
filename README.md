@@ -40,28 +40,38 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 
 | 目录 | 用途 |
 |---|---|
-| `src/WaferInspect.Core` | 纯数据契约与纯计算：`Navigation/`（导航配置 + `INavigationCatalog`）、`Simulation/`（确定性模拟算法）、`DependencyInjection/`（服务注册） |
-| `src/WaferInspect.App` | WPF 主程序：`Views/` `ViewModels/` `Models/` `Navigation/` `Services/` `Converters/` `Themes/`，`App.xaml.cs` 为组合根 |
-| `tests/WaferInspect.Core.Tests` | 导航配置、Core 服务装配与模拟算法单测（xunit，不依赖 WPF） |
+| `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Simulation/`、`DependencyInjection/` |
+| `src/WaferInspect.App` | WPF 主程序：`Views/`、`ViewModels/`（含 `Modules/` 的 H01~H10 骨架）、`Models/`、`Services/` 等 |
+| `tests/WaferInspect.Core.Tests` | 14 项导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权契约单测 |
 | `tools/WaferInspect.Smoke` | 启动冒烟工具 |
 | `.github/workflows/build.yml` | CI：restore + Release 构建 + 单元测试 |
 
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（0.3.0）
+## 架构（0.4.0）
 
 | 关注点 | 实现 |
 |---|---|
 | MVVM | `CommunityToolkit.Mvvm 8.4.2`：`ObservableObject` 基类 + `[ObservableProperty]` / `[RelayCommand]` 源生成器；XAML 绑定属性名与命令名保持不变 |
 | 组合根 | `Microsoft.Extensions.Hosting 10.0.12` 的 Generic Host：`App.OnStartup` 注册并启动、`App.OnExit` 停止并释放；`StartupUri` 已移除，`MainWindow` 与 `MainViewModel` 均由容器解析 |
-| 依赖注入 | `Core` 提供 `AddWaferInspectCore()`（`INavigationCatalog`、`ISimulationData`）；`App` 追加 `ILiveDataPump`、`INavGroupFactory`、`MainViewModel`、`MainWindow` |
+| 依赖注入 | `Core` 提供 `AddWaferInspectCore()`：导航、`IDataSource`、Map、事件、鉴权与设备命令层；`App` 追加数据泵、模块 ViewModel 注册表、窗口 |
 | 生命周期 | 1 Hz 节拍由 `DispatcherTimerLiveDataPump` 产生，`SimulationHostedService : IHostedService` 随主机启停；日志由通用主机提供（默认 Warning 级别） |
 | 可测性 | 确定性良率算法与导航目录在 `Core`（net10.0、无 WPF 类型），测试项目用真实 Host 验证装配与历史数值 |
 
 包版本集中维护在 `Directory.Packages.props`（CPM），各 `csproj` 的 `PackageReference` 不写版本号。
 
 启动链路：`App.OnStartup` → 构建 Host → `host.Start()`（启动数据泵）→ 解析 `MainWindow`（注入 `MainViewModel`）→ `Show()`。
+
+## Blade 迁移状态（P0 进行中）
+
+当前仅交付 P0 基线：4 组 14 项导航，新增「数据分析」(`analysis`) 与「图谱管理」(`maps`)，
+两页均明确标识为尚未迁移的骨架，不展示伪造的历史业务数据。H01~H10 ViewModel 已注册，
+实时良率通过 `IDataSource` 读取，Map 布局统计由 H05 `IMapRenderer` 唯一提供。
+
+统一鉴权当前只有默认拒绝的会话/权限服务，**应用级登录门禁尚未激活**；设备网关没有生产实现。
+因此 P0 未关闭。完整验收状态、F↔R↔AC 追溯和阻塞项见
+[`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
 
 ## 左侧导航配置
 
@@ -83,5 +93,5 @@ new NavGroupDefinition("system", "系统", /* DefaultExpanded */ false,
 ## 已知限制
 
 - `Nullable` 暂为 `disable`（ViewModel 仍依赖 WPF 类型，详见 AGENTS.md §4）；
-- 数据为 1 Hz 模拟数据（`ISimulationData` 在 Core 层，`ILiveDataPump` 可替换），未接入真实设备 / 数据库；
+- 数据仍为 1 Hz 模拟数据；良率读取已切换到可替换的 `IDataSource`，但真实设备 / 数据库适配器尚未接入；
 - 配套的高保真 HTML 原型不在本仓库内。

@@ -10,5 +10,9 @@ public interface INavigationCatalog
 
     IReadOnlyList<NavGroupDefinition> Groups { get; }
 
+    IReadOnlyList<ModulePageDefinition> Pages { get; }
+
     string? GroupKeyOf(string itemKey);
+
+    ModulePageDefinition? PageOf(string viewKey);
 }

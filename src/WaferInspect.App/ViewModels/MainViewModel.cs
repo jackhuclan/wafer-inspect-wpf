@@ -8,11 +8,14 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using WaferInspect.Core.Data;
+using WaferInspect.Core.Maps;
 using WaferInspect.Core.Navigation;
 using WaferInspect.Core.Simulation;
 using WaferInspectHMI.Models;
 using WaferInspectHMI.Navigation;
 using WaferInspectHMI.Services;
+using WaferInspectHMI.ViewModels.Modules;
 
 namespace WaferInspectHMI.ViewModels;
 
@@ -25,7 +28,10 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private readonly INavigationCatalog _catalog;
     private readonly INavGroupFactory _navFactory;
     private readonly ISimulationData _simulation;
+    private readonly IDataSource _dataSource;
+    private readonly IMapRenderer _mapRenderer;
     private readonly ILiveDataPump _pump;
+    private readonly IModuleViewModelRegistry _moduleRegistry;
     private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
     private readonly Random _rng = new(20261109);
@@ -43,13 +49,19 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         INavigationCatalog catalog,
         INavGroupFactory navFactory,
         ISimulationData simulation,
+        IDataSource dataSource,
+        IMapRenderer mapRenderer,
         ILiveDataPump pump,
+        IModuleViewModelRegistry moduleRegistry,
         ILogger<MainViewModel> logger)
     {
         _catalog = catalog;
         _navFactory = navFactory;
         _simulation = simulation;
+        _dataSource = dataSource;
+        _mapRenderer = mapRenderer;
         _pump = pump;
+        _moduleRegistry = moduleRegistry;
         _logger = logger;
 
         BuildNav();
@@ -88,6 +100,12 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     [ObservableProperty] private bool _isAlarms;
     [ObservableProperty] private bool _isLive;
     [ObservableProperty] private bool _isGeneric;
+    [ObservableProperty] private bool _isModuleSkeleton;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentModuleId))]
+    [NotifyPropertyChangedFor(nameof(CurrentModuleTitle))]
+    [NotifyPropertyChangedFor(nameof(CurrentModuleStages))]
+    private ModuleViewModelBase _currentModule;
     [ObservableProperty] private string _clockText;
     [ObservableProperty] private string _statusMessage = "已连接 · PL-01 / SECS-GEM · 控制器 READY";
 
@@ -124,6 +142,9 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     public string AppVersion => "v3.8.2";
     public string PauseLabel => Paused ? "继续刷新" : "暂停刷新";
     public string RefreshState => Paused ? "已暂停" : "实时刷新中";
+    public string CurrentModuleId => CurrentModule?.ModuleId ?? string.Empty;
+    public string CurrentModuleTitle => CurrentModule?.DisplayName ?? string.Empty;
+    public string CurrentModuleStages => CurrentModule?.MigrationStages ?? string.Empty;
 
     /* ---------------- KPI ---------------- */
     public string OnlineDevices => "12 / 13 在线";
@@ -219,7 +240,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
 
     private void BuildYield()
     {
-        _yield.AddRange(_simulation.CreateYieldSeries());
+        _yield.AddRange(_dataSource.CreateYieldSeries());
         RebuildChart();
     }
 
@@ -245,38 +266,17 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     {
         int ci = Channel switch { "PL" => 0, "EL" => 1, _ => 2 };
         var colors = ChannelColors[Channel].Select(B).ToArray();
-        const int N = 21;
-        const double pitch = 10.9, size = 9.2, cx = 120, cy = 120, R = 113;
-        var list = new List<DieItem>();
-        int[] counts = new int[4];
+        var map = _mapRenderer.Render(new MapRenderRequest(ci, Channel));
+        string[] labels = ["正常", "轻微", "警告", "缺陷"];
 
-        for (int r = 0; r < N; r++)
-        for (int c = 0; c < N; c++)
+        Dies = map.Cells.Select(cell => new DieItem
         {
-            double x = cx + (c - (N - 1) / 2.0) * pitch;
-            double y = cy + (r - (N - 1) / 2.0) * pitch;
-            double dist = Math.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-            if (dist > R - 4) continue;
-            double seed = _simulation.Noise((r * 31 + c * 7) * 13 + ci * 97);
-            double edge = dist / R;
-            int lv = seed < 0.80 - 0.16 * edge ? 0 : seed < 0.925 - 0.09 * edge ? 1
-                   : seed < 0.982 - 0.035 * edge ? 2 : 3;
-            double cluster = Math.Sqrt((x - (cx + 40)) * (x - (cx + 40)) + (y - (cy - 32)) * (y - (cy - 32)));
-            if (cluster < 23 && _simulation.Noise((int)(seed * 997) + ci * 13) > 0.34)
-                lv = _simulation.Noise(seed * 311) > 0.46 ? 3 : 2;
-
-            counts[lv]++;
-            list.Add(new DieItem
-            {
-                X = x - size / 2, Y = y - size / 2, Level = lv, Fill = colors[lv],
-                Tip = $"R{r + 1:00} · C{c + 1:00}   {new[] { "正常", "轻微", "警告", "缺陷" }[lv]}   通道 {Channel}"
-            });
-        }
-
-        Dies = list;
-        DieTotal = counts.Sum(); DieNormal = counts[0]; DieLight = counts[1];
-        DieWarn = counts[2]; DieBad = counts[3];
-        DieYieldText = $"{((1 - counts[3] / (double)DieTotal) * 100):F2}%";
+            X = cell.X, Y = cell.Y, Level = cell.Level, Fill = colors[cell.Level],
+            Tip = $"R{cell.Row + 1:00} · C{cell.Column + 1:00}   {labels[cell.Level]}   通道 {Channel}"
+        }).ToList();
+        DieTotal = map.Total; DieNormal = map.Normal; DieLight = map.Light;
+        DieWarn = map.Warning; DieBad = map.Bad;
+        DieYieldText = $"{map.YieldPercentage:F2}%";
     }
 
     private void BuildModuleTable(string view)
@@ -356,27 +356,18 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         }
         foreach (var group in NavGroups) group.Raise(nameof(NavGroup.HasSelection));
 
-        (PageTitle, PageCrumb, PageSubtitle) = key switch
-        {
-            "live"        => ("实时监控", "工作台 / 实时监控", "产线 A · 全部检测通道 1 Hz 实时数据流"),
-            "tasks"       => ("检测任务", "检测业务 / 检测任务", "任务队列、执行进度与检测结果追溯"),
-            "wafer"       => ("晶圆地图", "检测业务 / 晶圆地图", "多通道晶粒级缺陷密度与坐标定位"),
-            "defects"     => ("缺陷分析", "检测业务 / 缺陷分析", "缺陷分类、趋势与帕累托分析"),
-            "reports"     => ("结果报表", "检测业务 / 结果报表", "检测报告生成、审核与归档"),
-            "devices"     => ("设备管理", "设备与配置 / 设备管理", "13 台设备 · 12 台在线 · 1 台故障"),
-            "recipes"     => ("配方管理", "设备与配置 / 配方管理", "检测参数模板、版本与下发状态"),
-            "calibration" => ("标定与校验", "设备与配置 / 标定与校验", "量测溯源、标定计划与合规状态"),
-            "alarms"      => ("告警中心", "系统 / 告警中心", "告警分级、确认闭环与事件追溯"),
-            "users"       => ("用户与权限", "系统 / 用户与权限", "操作员账号、角色与访问授权"),
-            "settings"    => ("系统设置", "系统 / 系统设置", "运行参数、通知与数据策略"),
-            _             => ("运行总览", "工作台 / 运行总览", "产线 A · FAB-03 · 设备与检测任务实时状态")
-        };
+        var page = _catalog.PageOf(key) ?? _catalog.PageOf(_catalog.DefaultViewKey);
+        PageTitle = page.Title;
+        PageCrumb = page.Crumb;
+        PageSubtitle = page.Subtitle;
+        CurrentModule = _moduleRegistry.ForView(key);
 
         IsOverview = key == "overview";
         IsTasks = key == "tasks";
         IsAlarms = key == "alarms";
         IsLive = key == "live";
-        IsGeneric = !(IsOverview || IsTasks || IsAlarms || IsLive);
+        IsModuleSkeleton = page.IsMigrationSkeleton;
+        IsGeneric = !(IsOverview || IsTasks || IsAlarms || IsLive || IsModuleSkeleton);
         if (IsGeneric) BuildModuleTable(key);
 
         StatusMessage = $"当前视图：{PageCrumb}";
@@ -467,7 +458,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         if (Paused) return;
 
         double last = _yield[^1];
-        double next = _simulation.NextYield(last, _rng);
+        double next = _dataSource.NextYield(last, _rng);
         _yield.Add(next); _yield.RemoveAt(0);
         RebuildChart();
 

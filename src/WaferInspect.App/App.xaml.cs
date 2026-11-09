@@ -8,6 +8,7 @@ using WaferInspect.Core.DependencyInjection;
 using WaferInspectHMI.Navigation;
 using WaferInspectHMI.Services;
 using WaferInspectHMI.ViewModels;
+using WaferInspectHMI.ViewModels.Modules;
 using WaferInspectHMI.Views;
 
 namespace WaferInspectHMI;
@@ -40,6 +41,17 @@ public partial class App : Application
                     services.AddWaferInspectCore();
                     services.AddSingleton<ILiveDataPump, DispatcherTimerLiveDataPump>();
                     services.AddSingleton<INavGroupFactory, NavGroupFactory>();
+                    services.AddSingleton<ModuleViewModelBase, H01RunViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H02RecipeViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H03AlignmentViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H04InspectionViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H05MapViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H06DeviceControlViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H07ConfigurationViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H08AnalysisViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H09EventViewModel>();
+                    services.AddSingleton<ModuleViewModelBase, H10IdentityViewModel>();
+                    services.AddSingleton<IModuleViewModelRegistry, ModuleViewModelRegistry>();
                     services.AddSingleton<MainViewModel>();
                     services.AddSingleton<MainWindow>();
                     services.AddHostedService<SimulationHostedService>();

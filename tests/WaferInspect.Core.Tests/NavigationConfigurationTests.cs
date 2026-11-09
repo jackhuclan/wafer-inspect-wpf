@@ -17,7 +17,7 @@ public sealed class NavigationConfigurationTests
             Assert.False(string.IsNullOrWhiteSpace(group.Title));
             Assert.NotEmpty(group.Items);
         });
-        Assert.Equal(12, groups.Sum(group => group.Items.Count));
+        Assert.Equal(14, groups.Sum(group => group.Items.Count));
     }
 
     [Fact]
@@ -58,5 +58,50 @@ public sealed class NavigationConfigurationTests
         {
             Assert.NotNull(Nav.NavConfiguration.GroupKeyOf(item.Key));
         }
+    }
+
+    [Fact]
+    public void Pages_MatchAllFourteenNavigationItemsExactly()
+    {
+        var navigationKeys = Nav.NavConfiguration.Groups
+            .SelectMany(group => group.Items)
+            .Select(item => item.Key)
+            .OrderBy(key => key, StringComparer.Ordinal);
+        var pageKeys = Nav.PageConfiguration.Pages
+            .Select(page => page.Key)
+            .OrderBy(key => key, StringComparer.Ordinal);
+
+        Assert.Equal(navigationKeys, pageKeys);
+        Assert.Equal(14, Nav.PageConfiguration.Pages.Count);
+        Assert.Equal(14, Nav.PageConfiguration.Pages.Select(page => page.Key).Distinct().Count());
+    }
+
+    [Fact]
+    public void MigrationPages_PreserveRequiredNamesAndOwners()
+    {
+        Assert.Equal("检测任务", Nav.PageConfiguration.PageOf("tasks")?.Title);
+        Assert.Equal("H01", Nav.PageConfiguration.PageOf("tasks")?.OwnerModule);
+
+        var analysis = Nav.PageConfiguration.PageOf("analysis");
+        Assert.Equal("数据分析", analysis?.Title);
+        Assert.Equal("H08", analysis?.OwnerModule);
+        Assert.True(analysis?.IsMigrationSkeleton);
+
+        var maps = Nav.PageConfiguration.PageOf("maps");
+        Assert.Equal("图谱管理", maps?.Title);
+        Assert.Equal("H05", maps?.OwnerModule);
+        Assert.True(maps?.IsMigrationSkeleton);
+        Assert.DoesNotContain(Nav.NavConfiguration.Groups.SelectMany(group => group.Items),
+            item => item.Label.Contains("Review", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ExistingPages_KeepLegacyTitlesCrumbsAndNonSkeletonState()
+    {
+        Assert.Equal("运行总览", Nav.PageConfiguration.PageOf("overview")?.Title);
+        Assert.Equal("工作台 / 实时监控", Nav.PageConfiguration.PageOf("live")?.Crumb);
+        Assert.Equal("系统 / 系统设置", Nav.PageConfiguration.PageOf("settings")?.Crumb);
+        Assert.All(Nav.PageConfiguration.Pages.Where(page => page.Key is not "analysis" and not "maps"),
+            page => Assert.False(page.IsMigrationSkeleton));
     }
 }

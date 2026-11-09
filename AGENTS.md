@@ -41,7 +41,7 @@ wafer-inspect-wpf/
 
 | 项目 | 目标框架 | 职责 | 禁止 |
 |---|---|---|---|
-| `WaferInspect.Core` | `net10.0` | 纯数据契约与纯计算：左侧导航配置、视图 Key、可注入的导航目录、确定性模拟算法、`AddWaferInspectCore()` DI 注册扩展 | 引用任何 UI / Windows 类型 |
+| `WaferInspect.Core` | `net10.0` | 纯数据契约与纯计算：导航/页面 Owner、数据源、设备命令、统一事件、鉴权、Map 布局统计、确定性模拟算法、`AddWaferInspectCore()` | 引用任何 UI / Windows 类型；臆造设备协议或角色映射 |
 | `WaferInspect.App` | `net10.0-windows` (WinExe) | WPF 主程序：Views / ViewModels / Models / Converters / Navigation / Services / Themes，以及 Generic Host 组合根 | 在 `Core` 里塞 UI 类型；在视图里 `new` ViewModel |
 
 `WaferInspect.App` 内部子文件夹按职责命名，不再引入解决方案级子分组：
@@ -51,6 +51,7 @@ src/WaferInspect.App/
 ├─ App.xaml(.cs)              应用入口、资源字典合并、Generic Host 组合根
 ├─ Views/                     窗口与 XAML 视图（构造函数注入 ViewModel）
 ├─ ViewModels/                页面状态编排、[ObservableProperty] / [RelayCommand]
+│  └─ Modules/                H01~H10 模块 ViewModel 骨架与导航注册表
 ├─ Models/                    绑定模型（ObservableBase / NavGroup / NavItem / 任务 / 告警 …）
 ├─ Navigation/                把 Core 的纯配置转成运行时导航模型（实例服务）
 ├─ Services/                  1 Hz 数据泵与其 IHostedService 托管
@@ -58,7 +59,12 @@ src/WaferInspect.App/
 └─ Themes/                    语义色板、控件模板、状态样式
 
 src/WaferInspect.Core/
-├─ Navigation/                纯导航配置、INavigationCatalog
+├─ Navigation/                14 项导航、页面元数据与 H 模块 Owner
+├─ Data/                      IDataSource 实时良率读取边界
+├─ Devices/                   IDeviceGateway 与 H06 唯一命令层
+├─ Events/                    H09 统一事件源
+├─ Security/                  H10 统一会话与显式权限判定
+├─ Maps/                      H05 唯一 Map 布局、等级与统计实现
 ├─ Simulation/                确定性模拟算法 ISimulationData
 └─ DependencyInjection/       AddWaferInspectCore()
 ```
@@ -73,8 +79,8 @@ src/WaferInspect.Core/
 ### 2.2 `tests/` — 测试项目
 
 命名固定 `WaferInspect.<被测层>.Tests`。当前 `WaferInspect.Core.Tests`（net10.0 + xunit）
-覆盖导航配置的分组完整性、默认展开状态、菜单 Key 唯一性与默认视图归属，
-并用真实 Generic Host 验证 `AddWaferInspectCore()` 的装配与模拟算法的历史数值。
+覆盖 14 项导航与页面 Owner、分组/默认展开、Core 服务装配、数据源替换、Map 三通道历史快照、
+设备命令透传、统一事件和默认拒绝鉴权；`BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；
 涉及 WPF 的用例需独立 STA 宿主，当前仅测纯配置层，不引入 WPF 依赖。
@@ -128,3 +134,26 @@ Solution 'WaferInspect'
 - [ ] `dotnet build WaferInspect.slnx -c Release` 0 警告 0 错误（`TreatWarningsAsErrors=true`）；
 - [ ] `dotnet test WaferInspect.slnx` 全绿；`tools/WaferInspect.Smoke` 启动冒烟通过；
 - [ ] 版本号只改 `Directory.Build.props` 一处；提交信息用中文 Conventional Commits，尾注版本号（如 `feat(nav): … (0.2.0)`）。
+
+---
+
+## 6. Blade 迁移实现规约（最高优先级）
+
+凡编写或调整历史系统相关代码，必须同时遵守 `docs/PRD-Blade-Migration.md` 1.7 与下列约束；
+阶段状态与 F↔R↔AC 追溯见 `docs/P0-Migration-Status.md`。
+
+| 编号 | 实现约束 |
+|---|---|
+| `E-01` | 每个 `F-` 均有承接实现；不得遗漏、删减、弱化或降级为静态展示 |
+| `E-02` | 主流程、全部分支与状态迁移完整；暂停/继续/停止/结批/失败/中止/不保存等不得省略 |
+| `E-03` | 阈值、默认值、枚举、门禁、优先级与公式按 `BR-` 原样实现 |
+| `E-04` | 权限与校验统一走 H10 / 对应 Owner；禁止一律允许或绕过 |
+| `E-05` | 异常处理、失败提示与边界条件保留；不得吞异常或把失败转换成成功 |
+| `E-06` | 输入输出格式、单位、快捷键、颜色、命名及兼容行为按历史契约保留 |
+| `E-07` | 禁止用框架默认值、常量、静态占位、空实现或默认行为替代历史逻辑 |
+| `E-08` | 未确认行为必须有扩展点和 `// 【待确认 T-xxx】`，不得静默省略；高级/未启用功能也须保留 |
+| `E-09` | 模块关闭前完成 F 逐条勾销、BR 断言、AC 验收、双向覆盖与回归 |
+| `E-10` | 任何偏离均须登记需求变更或待确认项及理由；阶段状态文档不得虚报完成度 |
+
+P0 特殊边界：`T-017` / `T-027` 未闭环前不得臆造统一角色映射或初始账号策略；
+`T-029` 未闭环前不得注册虚构的生产 `IDeviceGateway`。P0 未关闭时不得宣称可进入后续阶段。

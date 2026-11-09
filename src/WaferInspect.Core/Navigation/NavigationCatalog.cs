@@ -7,5 +7,9 @@ public sealed class NavigationCatalog : INavigationCatalog
 
     public IReadOnlyList<NavGroupDefinition> Groups => NavConfiguration.Groups;
 
+    public IReadOnlyList<ModulePageDefinition> Pages => PageConfiguration.Pages;
+
     public string? GroupKeyOf(string itemKey) => NavConfiguration.GroupKeyOf(itemKey);
+
+    public ModulePageDefinition? PageOf(string viewKey) => PageConfiguration.PageOf(viewKey);
 }

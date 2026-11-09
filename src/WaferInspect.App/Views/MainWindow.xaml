@@ -723,7 +723,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- 视图 5：其它模块（数据表） -->
+                    <!-- 视图 5：其它既有模块（数据表），P0 保持原行为 -->
                     <Border Style="{StaticResource Card}" Visibility="{Binding IsGeneric, Converter={StaticResource BoolVis}}">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -734,6 +734,30 @@
                                 </DockPanel>
                             </Border>
                             <DataGrid Grid.Row="1" ItemsSource="{Binding ModuleTable}" Style="{StaticResource GenericGrid}" Margin="4"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- 视图 6：P0 新增模块骨架；明确未迁移状态，禁止用静态业务数据冒充实现 -->
+                    <Border Style="{StaticResource Card}" Visibility="{Binding IsModuleSkeleton, Converter={StaticResource BoolVis}}">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
+                                <DockPanel>
+                                    <TextBlock Text="P0 迁移骨架" Style="{StaticResource PanelTitle}"/>
+                                    <TextBlock Text="{Binding CurrentModuleId}" Style="{StaticResource PanelSub}" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                            </Border>
+                            <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
+                                <Border Background="{StaticResource AccentSoft}" CornerRadius="8" Padding="10,6" HorizontalAlignment="Center">
+                                    <TextBlock Text="导航与模块 Owner 已建立，业务功能尚未迁移" Foreground="{StaticResource Accent}" FontWeight="SemiBold"/>
+                                </Border>
+                                <TextBlock Text="{Binding CurrentModuleTitle}" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text}" HorizontalAlignment="Center" Margin="0,20,0,8"/>
+                                <TextBlock Text="本页仅完成 PRD P0 的入口、视图承载与职责归属。历史界面、业务规则、校验、异常分支和输入输出格式将在登记阶段逐项实现；当前页面不代表功能迁移完成。" TextWrapping="Wrap" TextAlignment="Center" LineHeight="22" Foreground="{StaticResource Text2}"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
+                                    <TextBlock Text="计划阶段：" Style="{StaticResource MetaText}"/>
+                                    <TextBlock Text="{Binding CurrentModuleStages}" FontFamily="{StaticResource Mono}" Foreground="{StaticResource Text2}"/>
+                                </StackPanel>
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </Grid>

@@ -34,6 +34,7 @@ public static class NavConfiguration
             new NavItemDefinition("tasks", "检测任务", "M3 4h18v16H3z M8 9h8 M8 13h8 M8 17h5", "3"),
             new NavItemDefinition("wafer", "晶圆地图", "M3 12h18 M12 3v18 M5 7l14 10 M19 7L5 17"),
             new NavItemDefinition("defects", "缺陷分析", "M4 4h16v16H4z M9 9h6v6H9z"),
+            new NavItemDefinition("analysis", "数据分析", "M4 19V5 M4 19h16 M8 15l3-4 3 2 5-7"),
             new NavItemDefinition("reports", "结果报表", "M4 20V4 M4 20h16 M8 16v-4 M12 16V8 M16 16v-6 M20 16V7")
         ]),
         new NavGroupDefinition("devices", "设备与配置", true,
@@ -41,7 +42,8 @@ public static class NavConfiguration
             new NavItemDefinition("devices", "设备管理",
                 "M5 5h14v14H5z M9 9h6v6H9z M9 2v3 M15 2v3 M9 19v3 M15 19v3 M2 9h3 M2 15h3 M19 9h3 M19 15h3"),
             new NavItemDefinition("recipes", "配方管理", "M4 7h16 M4 12h16 M4 17h16 M9 4v6 M15 10v6"),
-            new NavItemDefinition("calibration", "标定与校验", "M12 3l8 3v6h-8V3z M4 12h16v9H4z M9 16h6")
+            new NavItemDefinition("calibration", "标定与校验", "M12 3l8 3v6h-8V3z M4 12h16v9H4z M9 16h6"),
+            new NavItemDefinition("maps", "图谱管理", "M4 4h16v16H4z M4 10h16 M10 4v16 M15 10l5 5 M15 15h5")
         ]),
         new NavGroupDefinition("system", "系统", false,
         [
