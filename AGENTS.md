@@ -63,7 +63,7 @@ src/WaferInspect.Core/
 ├─ Data/                      IDataSource 实时良率读取边界
 ├─ Devices/                   IDeviceGateway 与 H06 唯一命令层
 ├─ Events/                    H09 统一事件源
-├─ Security/                  H10 统一会话与显式权限判定
+├─ Security/                  H10 统一会话、显式权限判定、认证链路与统一角色模型
 ├─ Maps/                      H05 唯一 Map 布局、等级与统计实现
 ├─ Simulation/                确定性模拟算法 ISimulationData
 └─ DependencyInjection/       AddWaferInspectCore()
@@ -80,15 +80,18 @@ src/WaferInspect.Core/
 
 命名固定 `WaferInspect.<被测层>.Tests`。当前 `WaferInspect.Core.Tests`（net10.0 + xunit）
 覆盖 14 项导航与页面 Owner、分组/默认展开、Core 服务装配、数据源替换、Map 三通道历史快照、
-设备命令透传、统一事件和默认拒绝鉴权；`BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
+设备命令透传、统一事件、默认拒绝鉴权、统一角色模型展开、认证成败与登录门禁（含 `BR-76` 初始账号断言）；
+`BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；
 涉及 WPF 的用例需独立 STA 宿主，当前仅测纯配置层，不引入 WPF 依赖。
 
 ### 2.3 `tools/` — 工具项目
 
-`WaferInspect.Smoke`（net10.0 console）：启动 Release 产物，等待后断言进程存活且
-`MainWindowHandle != 0`，输出窗口句柄/标题并结束进程。不随主程序发布，CI 中不强制运行。
+`WaferInspect.Smoke`（net10.0-windows + UseWPF）：启动 Release 产物，经 UIAutomation 以初始账号
+（BR-76：admin / 123456，T-027 已确认保留）真实登录——登录门禁（AC-P0-04）生效后未认证不出现主窗口——
+再断言进程存活、`MainWindowHandle != 0`，输出窗口句柄/标题并结束进程；失败时输出顶层窗口枚举与登录
+错误文本辅助定位。不随主程序发布，CI 中不强制运行。
 
 ---
 
@@ -155,5 +158,7 @@ Solution 'WaferInspect'
 | `E-09` | 模块关闭前完成 F 逐条勾销、BR 断言、AC 验收、双向覆盖与回归 |
 | `E-10` | 任何偏离均须登记需求变更或待确认项及理由；阶段状态文档不得虚报完成度 |
 
-P0 特殊边界：`T-017` / `T-027` 未闭环前不得臆造统一角色映射或初始账号策略；
-`T-029` 未闭环前不得注册虚构的生产 `IDeviceGateway`。P0 未关闭时不得宣称可进入后续阶段。
+P0 特殊边界：`T-017` / `T-027` 已于 2026-11-09 闭环（角色映射采纳 PRD 3.3 推定并固化于
+`Core/Security/RoleModel`；初始账号 admin / 123456 按 BR-76 原样保留并登记于 `InMemoryAccountStore`），
+P0 已于 0.5.0 关闭；后续如需变更角色集或账号策略必须先修订 PRD 台账再改代码。
+`T-029` 未闭环前不得注册虚构的生产 `IDeviceGateway`。

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using WaferInspect.Core.Data;
 using WaferInspect.Core.Maps;
 using WaferInspect.Core.Navigation;
+using WaferInspect.Core.Security;
 using WaferInspect.Core.Simulation;
 using WaferInspectHMI.Models;
 using WaferInspectHMI.Navigation;
@@ -32,6 +33,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private readonly IMapRenderer _mapRenderer;
     private readonly ILiveDataPump _pump;
     private readonly IModuleViewModelRegistry _moduleRegistry;
+    private readonly IAuthorizationService _authorization;
     private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
     private readonly Random _rng = new(20261109);
@@ -53,6 +55,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         IMapRenderer mapRenderer,
         ILiveDataPump pump,
         IModuleViewModelRegistry moduleRegistry,
+        IAuthorizationService authorization,
         ILogger<MainViewModel> logger)
     {
         _catalog = catalog;
@@ -62,6 +65,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         _mapRenderer = mapRenderer;
         _pump = pump;
         _moduleRegistry = moduleRegistry;
+        _authorization = authorization;
         _logger = logger;
 
         BuildNav();
@@ -137,8 +141,16 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     public List<TaskItem> Tasks { get; private set; }
     public List<AlarmItem> Alarms { get; private set; }
 
-    public string OperatorName => "陈工";
-    public string OperatorRole => "工艺工程师";
+    // 顶栏身份来自登录会话（T-017 统一角色模型）；Roles 按继承序存放，末位为最高角色。
+    public string OperatorName => _authorization.CurrentUser?.DisplayName ?? "未登录";
+    public string OperatorRole
+    {
+        get
+        {
+            var roles = _authorization.CurrentUser?.Roles;
+            return roles is { Count: > 0 } ? RoleModel.DisplayNameOf(roles[^1]) : "未登录";
+        }
+    }
     public string AppVersion => "v3.8.2";
     public string PauseLabel => Paused ? "继续刷新" : "暂停刷新";
     public string RefreshState => Paused ? "已暂停" : "实时刷新中";

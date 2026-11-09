@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- 登录门禁生效后，冒烟需要 UIAutomation 真实登录（T-027 结论：初始账号原样保留），故切到 windows TFM + WPF -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
 
 </Project>

@@ -9,11 +9,12 @@ public sealed record UserIdentity(
 
 /// <summary>
 /// H10 统一鉴权边界。默认拒绝，不允许「未登录即拥有权限」或硬编码全权限角色。
-/// OP/ME/SE 与 Review 四角色的合并映射见【待确认 T-017】；
-/// 初始账号兼容与改密策略见【待确认 T-027】，本骨架不内置任何账号或密码。
+/// 角色集与继承序由 <see cref="RoleModel"/> 提供（T-017 已确认采纳 PRD 3.3 推定映射）；
+/// 凭据校验由 <see cref="IAuthenticationService"/> 承担（T-027 已确认初始账号按 BR-76 原样保留）；
+/// 逐模块操作权限矩阵按【待确认 T-018】于 P5 逐格确认后固化。
 /// </summary>
-// 【待确认 T-017】统一角色映射未确认，不在此处固化 OP/ME/SE 与 Review 角色的转换。
-// 【待确认 T-027】初始账号兼容和强制改密策略未确认，不内置历史默认凭据。
+// 【T-017 已确认 2026-11-09】统一角色映射采纳 PRD 3.3：OP→operator、ME→engineer、SE→service，technician 保留。
+// 【T-027 已确认 2026-11-09】初始账号 admin / 123456 按历史行为原样保留，兼容行为登记于 docs/P0-Migration-Status.md。
 public interface IAuthorizationService
 {
     UserIdentity? CurrentUser { get; }

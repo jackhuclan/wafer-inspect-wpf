@@ -8,18 +8,21 @@
 - **本轮范围**：14 项导航、`analysis` / `maps` 页面承载、H01~H10 ViewModel 骨架、实时良率 `IDataSource` 边界、`IDeviceGateway` / H06 设备命令层、H09 `IEventSource`、H10 `IAuthorizationService`、H05 Map 唯一布局与统计实现、`BR-` 测试标记框架。
 - **目标状态**：后续 P1~P5 只能在既定 Owner 与接口边界上实现历史功能；现有 12 项导航、5 类视图、分组折叠、三通道 Map 数值及 1 Hz 模拟节拍不回归。
 - **不在本轮范围**：历史页面业务迁移、真实登录/自检、真实设备协议、持久化、文件导入导出、存量数据搬迁。
+- **0.5.0 收口轮（2026-11-09）**：激活应用级登录门禁——`LoginWindow` + `LoginViewModel` + `LoginGate`；`RoleModel` 统一五级角色与继承序（T-017 结论）；`IAuthenticationService` / `IAccountStore` 认证链路与初始账号（T-027 结论，BR-76）；顶栏身份接会话；Smoke 升级为 UIAutomation 真实登录；docs 挂入 `WaferInspect.slnx` Solution Items。
 
 ## 2. P0 验收状态
 
 | 验收 | 状态 | 证据 / 缺口 |
 |---|---|---|
 | `AC-P0-01` | 通过 | 4 组 14 项；导航 Key 与 `PageConfiguration` 一一对应；`NavigationConfigurationTests` 覆盖唯一性、名称、Owner 与原页面元数据 |
-| `AC-P0-02` | 部分通过 | Map 布局/等级/统计仅 `WaferMapRenderer` 一份；设备命令仅 `DeviceCommandLayer` 一份。其余历史共享控件尚属后续阶段，不宣称全量完成 |
-| `AC-P0-03` | 部分通过 | `MainViewModel` 的良率读写依赖 `IDataSource`；替换实现单测通过。真实适配器受 `T-029`/`T-030` 阻塞，尚未联调 |
-| `AC-P0-04` | 未通过 | `AuthorizationService` 默认拒绝、显式权限判定与会话清理已测试；应用级登录门禁尚未激活，等待 `T-017` 角色合并与 `T-027` 初始账号策略 |
-| `AC-P0-05` | 通过（结构） | 未新增 Review 程序、独立入口或第二套密码；`analysis` 为同一主窗口菜单页 |
+| `AC-P0-02` | 通过（本轮边界） | Map 布局/等级/统计仅 `WaferMapRenderer` 一份；设备命令仅 `DeviceCommandLayer` 一份；鉴权角色集仅 `RoleModel` 一份。其余历史共享控件属后续阶段，不在 P0 宣称全量 |
+| `AC-P0-03` | 通过（结构） | `MainViewModel` 的良率读写依赖 `IDataSource`；替换实现单测通过。真实适配器联调受 `T-029`/`T-030` 阻塞，属 P4 边界，不影响 P0 门禁 |
+| `AC-P0-04` | 通过（0.5.0） | 登录门禁已激活：`LoginWindow` 先行，`IAuthorizationService.IsAuthenticated` 为真并经 `LoginGate.EnsureAuthenticated` 校验后才创建主窗口；`RoleModel` 固化五级角色与继承序；`AuthenticationTests` 覆盖角色展开、认证成败、门禁拦截；Smoke 以 UIAutomation 真实登录（admin/123456，BR-76）后断言主窗口句柄非零 |
+| `AC-P0-05` | 通过（结构） | 未新增 Review 程序、独立入口或第二套密码；`analysis` 为同一主窗口菜单页；登录入口唯一（C-03 起效） |
 
-**结论：P0 尚未关闭，不得据此进入需要完整 P0 门禁的后续阶段。**
+**结论：P0 已于 0.5.0（2026-11-09）关闭，可进入 P1（检测任务主干 C-01）。**
+`T-017` 已确认：采纳 PRD 3.3 推定映射（OP→operator、ME→engineer、SE→service，Review 四角色并入同名角色，technician 保留），角色集固化于 `Core/Security/RoleModel`。
+`T-027` 已确认：初始账号 admin / 123456（BR-76）按历史行为原样保留，登记于 `InMemoryAccountStore` 并有 BR-76 断言测试；哈希存储与强制改密可作为后续安全变更替换 `IAuthenticationService` 实现。
 
 ## 3. F ↔ R ↔ AC 双向追溯基线
 
@@ -54,15 +57,21 @@
 
 | 编号 | 需要补充 | 影响 |
 |---|---|---|
-| `T-017` | OP/ME/SE 与 Review 管理员/工程师/技术员/操作员的统一角色映射，以及 technician 保留规则 | 阻塞统一登录门禁激活与 P0 关闭 |
-| `T-027` | 初始账号兼容、强制改密与历史存量账号迁移策略 | 阻塞可用登录流程与安全验收 |
-| `T-029` | EFEM/ACS/相机/光源/PLC/IO/SECS-GEM/OCR/FTP 的协议、地址、命令、返回码与异常契约 | 阻塞真实 `IDeviceGateway` 与联调 |
-| `T-030` | Job/Recipe/MapType/结果/用户等存量数据格式与搬迁规则 | 阻塞真实数据源和兼容性验证 |
+| ~~`T-017`~~ | **已确认（2026-11-09）**：采纳 PRD 3.3 推定映射，technician 保留 | 已闭环，不再阻塞 |
+| ~~`T-027`~~ | **已确认（2026-11-09）**：初始账号按历史行为原样保留，兼容行为已记录 | 已闭环，不再阻塞 |
+| `T-029` | EFEM/ACS/相机/光源/PLC/IO/SECS-GEM/OCR/FTP 的协议、地址、命令、返回码与异常契约 | 阻塞真实 `IDeviceGateway` 与联调（P4 边界） |
+| `T-030` | Job/Recipe/MapType/结果/用户等存量数据格式与搬迁规则 | 阻塞真实数据源、真实账号存储和兼容性验证（P3/P4 边界） |
 
-## 6. 验证记录
+## 6. 验证记录（0.5.0）
 
-- `dotnet restore` / `dotnet build WaferInspect.slnx -c Release`：0 警告 0 错误。
-- `dotnet test WaferInspect.slnx -c Release`：22/22 通过。
-- `WaferInspect.Smoke`：窗口句柄非零，标题为 `WaferInspect · 晶圆检测上位机`。
-- HTML 原型：`node --check` 通过，侧栏 14 个唯一视图 Key 守恒。
+- `dotnet build WaferInspect.slnx -c Release`：0 警告 0 错误（`TreatWarningsAsErrors` 生效）。
+- `dotnet test WaferInspect.slnx -c Release`：34/34 通过（新增 12 项认证/角色/门禁断言，含 `BR-76` 标记测试）。
+- `WaferInspect.Smoke`（UIAutomation 真实登录）：登录窗口出现 → 注入 admin/123456 → 点击登录 → 主窗口出现，`hwnd` 非零，标题 `WaferInspect · 晶圆检测上位机`。
+- 门禁回归：未认证时主窗口不创建（`LoginGate` 单测 + Smoke 失败诊断路径双覆盖）。
 - GitHub Actions 结论以推送后的实际 run 为准；未执行或未完成的业务验收不写成通过。
+
+## 7. 残留与后续边界（进入 P1 前登记）
+
+- 主界面顶栏身份已接登录会话（`OperatorName`/`OperatorRole` 来自 `IAuthorizationService`）；「退出登录」按钮仍是演示占位（仅提示文案），退出→重登录回路属 H10 完整迁移（P1 最小闭环 / P5 完整）。
+- 登录窗口为 P0 基础设施，样式为统一主题的最小实现；历史登录界面的完整交互（自检提示、身份切换）在 P1 `R-H10-*` 迁移。
+- 初始账号为明文内存存储（与历史行为一致）；生产化哈希与改密流程待后续安全变更。

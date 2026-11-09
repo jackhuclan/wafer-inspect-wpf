@@ -25,6 +25,8 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IMapRenderer, WaferMapRenderer>();
         services.AddSingleton<IEventSource, InMemoryEventSource>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
+        services.AddSingleton<IAccountStore, InMemoryAccountStore>();
+        services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<IDeviceCommandLayer, DeviceCommandLayer>();
         // 【待确认 T-029】不注册虚构的 IDeviceGateway 生产实现；由确认协议后的适配器提供。
         return services;

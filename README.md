@@ -29,8 +29,9 @@ dotnet test WaferInspect.slnx -c Release
 dotnet run --project tools/WaferInspect.Smoke/WaferInspect.Smoke.csproj -c Release
 ```
 
-`WaferInspect.Smoke` 会启动 Release 产物，3 秒后断言进程存活且已创建主窗口句柄，
-输出窗口标题；退出码 `0` 为通过。也可显式传入 exe 路径：
+`WaferInspect.Smoke` 会启动 Release 产物，经 UIAutomation 以初始账号（BR-76：admin / 123456）
+**真实登录**后断言进程存活且已创建主窗口句柄（登录门禁生效后未认证不出现主窗口），
+输出窗口标题；失败时输出顶层窗口枚举与登录错误文本辅助定位。退出码 `0` 为通过。也可显式传入 exe 路径：
 
 ```bash
 dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferInspectHMI.exe>
@@ -42,14 +43,14 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 |---|---|
 | `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Simulation/`、`DependencyInjection/` |
 | `src/WaferInspect.App` | WPF 主程序：`Views/`、`ViewModels/`（含 `Modules/` 的 H01~H10 骨架）、`Models/`、`Services/` 等 |
-| `tests/WaferInspect.Core.Tests` | 14 项导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权契约单测 |
+| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁单测 |
 | `tools/WaferInspect.Smoke` | 启动冒烟工具 |
 | `.github/workflows/build.yml` | CI：restore + Release 构建 + 单元测试 |
 
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（0.4.0）
+## 架构（0.5.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -61,16 +62,17 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 
 包版本集中维护在 `Directory.Packages.props`（CPM），各 `csproj` 的 `PackageReference` 不写版本号。
 
-启动链路：`App.OnStartup` → 构建 Host → `host.Start()`（启动数据泵）→ 解析 `MainWindow`（注入 `MainViewModel`）→ `Show()`。
+启动链路：`App.OnStartup` → 构建 Host → `host.Start()`（启动数据泵）→ 登录窗口（`LoginWindow`，唯一登录入口）→ 认证成功经 `LoginGate` 校验 → 解析 `MainWindow`（注入 `MainViewModel`）→ `Show()`；取消登录则应用退出。
 
-## Blade 迁移状态（P0 进行中）
+## Blade 迁移状态（P0 已关闭）
 
-当前仅交付 P0 基线：4 组 14 项导航，新增「数据分析」(`analysis`) 与「图谱管理」(`maps`)，
+P0 基线：4 组 14 项导航，新增「数据分析」(`analysis`) 与「图谱管理」(`maps`)，
 两页均明确标识为尚未迁移的骨架，不展示伪造的历史业务数据。H01~H10 ViewModel 已注册，
 实时良率通过 `IDataSource` 读取，Map 布局统计由 H05 `IMapRenderer` 唯一提供。
 
-统一鉴权当前只有默认拒绝的会话/权限服务，**应用级登录门禁尚未激活**；设备网关没有生产实现。
-因此 P0 未关闭。完整验收状态、F↔R↔AC 追溯和阻塞项见
+0.5.0 激活应用级登录门禁：统一角色模型（`Core/Security/RoleModel`，T-017 已确认）、
+认证链路与初始账号（T-027 已确认，BR-76 按历史行为保留）。P0 已关闭，下一阶段为
+P1（检测任务主干 C-01）。完整验收状态、F↔R↔AC 追溯和待确认项见
 [`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
 
 ## 左侧导航配置

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WaferInspect.Core.DependencyInjection;
+using WaferInspect.Core.Security;
 using WaferInspectHMI.Navigation;
 using WaferInspectHMI.Services;
 using WaferInspectHMI.ViewModels;
@@ -54,11 +55,28 @@ public partial class App : Application
                     services.AddSingleton<IModuleViewModelRegistry, ModuleViewModelRegistry>();
                     services.AddSingleton<MainViewModel>();
                     services.AddSingleton<MainWindow>();
+                    services.AddSingleton<LoginViewModel>();
+                    services.AddSingleton<LoginWindow>();
                     services.AddHostedService<SimulationHostedService>();
                 })
                 .Build();
 
             _host.Start();
+
+            // 登录门禁（AC-P0-04）：先登录，认证通过后才创建主窗口；
+            // 未认证一律不进入主界面（C-03：全系统仅此一个登录入口）。
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var authorization = _host.Services.GetRequiredService<IAuthorizationService>();
+            var login = _host.Services.GetRequiredService<LoginWindow>();
+            bool? loginResult = login.ShowDialog();
+            if (loginResult != true)
+            {
+                Shutdown(0);
+                return;
+            }
+
+            // 纵深防御：即使未来登录窗口被改动，主窗口创建前仍强制校验会话。
+            LoginGate.EnsureAuthenticated(authorization);
 
             // StartupUri 已移除：窗口由容器构造并显式 Show，ShutdownMode 绑定到主窗口。
             ShutdownMode = ShutdownMode.OnMainWindowClose;
