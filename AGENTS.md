@@ -49,12 +49,13 @@ wafer-inspect-wpf/
 ```
 src/WaferInspect.App/
 ├─ App.xaml(.cs)              应用入口、资源字典合并、Generic Host 组合根
-├─ Views/                     窗口与 XAML 视图（构造函数注入 ViewModel）
+├─ Views/                     窗口与 XAML 视图（构造函数注入 ViewModel）：DetectionView（检测任务九栏）
+│                             与配套对话框 SelectJobDialog / EfemSettingsDialog / WaferConfirmDialog / JobInfoDialog
 ├─ ViewModels/                页面状态编排、[ObservableProperty] / [RelayCommand]
-│  └─ Modules/                H01~H10 模块 ViewModel 骨架与导航注册表
+│  └─ Modules/                H01~H10 模块 ViewModel：H01（H01RunViewModel/H01Items）已实现，其余为骨架
 ├─ Models/                    绑定模型（ObservableBase / NavGroup / NavItem / 任务 / 告警 …）
 ├─ Navigation/                把 Core 的纯配置转成运行时导航模型（实例服务）
-├─ Services/                  1 Hz 数据泵与其 IHostedService 托管
+├─ Services/                  1 Hz 数据泵与其 IHostedService 托管；H01DialogService（对话框边界实现）
 ├─ Converters/                XAML 值转换器
 └─ Themes/                    语义色板、控件模板、状态样式
 
@@ -62,9 +63,11 @@ src/WaferInspect.Core/
 ├─ Navigation/                14 项导航、页面元数据与 H 模块 Owner
 ├─ Data/                      IDataSource 实时良率读取边界
 ├─ Devices/                   IDeviceGateway 与 H06 唯一命令层
-├─ Events/                    H09 统一事件源
-├─ Security/                  H10 统一会话、显式权限判定、认证链路与统一角色模型
+├─ Events/                    H09 统一事件源；AlarmCenter（BR-74/75 统一告警中心）
+├─ Security/                  H10 统一会话、显式权限判定、认证链路与统一角色模型；SelfCheckService（BR-77）
 ├─ Maps/                      H05 唯一 Map 布局、等级与统计实现
+├─ Run/                       H01 运行域唯一 Owner：WaferRunController（BR-06/08/09/10/14/74）、
+│                             ManualLoadSequencer（BR-05）、JobCatalog（BR-10）、RunModels、LogFormat（BR-18）
 ├─ Simulation/                确定性模拟算法 ISimulationData
 └─ DependencyInjection/       AddWaferInspectCore()
 ```
@@ -80,7 +83,9 @@ src/WaferInspect.Core/
 
 命名固定 `WaferInspect.<被测层>.Tests`。当前 `WaferInspect.Core.Tests`（net10.0 + xunit）
 覆盖 14 项导航与页面 Owner、分组/默认展开、Core 服务装配、数据源替换、Map 三通道历史快照、
-设备命令透传、统一事件、默认拒绝鉴权、统一角色模型展开、认证成败与登录门禁（含 `BR-76` 初始账号断言）；
+设备命令透传、统一事件、默认拒绝鉴权、统一角色模型展开、认证成败与登录门禁（含 `BR-76` 初始账号断言）、
+运行状态机（`RunControllerTests`：晶圆内计数/结晶提交/暂停恢复/结批/BR-74 拦截等 12 项）与
+手动装载序列 / Job 目录（`ManualLoadAndJobCatalogTests` 5 项），共 51 项；
 `BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；
@@ -143,7 +148,7 @@ Solution 'WaferInspect'
 ## 6. Blade 迁移实现规约（最高优先级）
 
 凡编写或调整历史系统相关代码，必须同时遵守 `docs/PRD-Blade-Migration.md` 1.7 与下列约束；
-阶段状态与 F↔R↔AC 追溯见 `docs/P0-Migration-Status.md`。
+阶段状态与 F↔R↔AC 追溯见 `docs/P0-Migration-Status.md`、`docs/P1-Migration-Status.md`。
 
 | 编号 | 实现约束 |
 |---|---|
@@ -161,4 +166,18 @@ Solution 'WaferInspect'
 P0 特殊边界：`T-017` / `T-027` 已于 2026-11-09 闭环（角色映射采纳 PRD 3.3 推定并固化于
 `Core/Security/RoleModel`；初始账号 admin / 123456 按 BR-76 原样保留并登记于 `InMemoryAccountStore`），
 P0 已于 0.5.0 关闭；后续如需变更角色集或账号策略必须先修订 PRD 台账再改代码。
+
+P1 特殊边界（0.6.0）：检测任务（H01）界面功能全量迁移完成并经 UIAutomation 全流程实测；
+按用户指示**暂时跳过设备连接相关迁移**，13 项设备动作明确搁置并登记于
+`docs/P1-Migration-Status.md` §4（恢复条件随项附注）——搁置期间禁止伪造设备成功、
+禁止下发任何指令，界面动作一律以「[搁置] 未下发」日志与提示标注。
 `T-029` 未闭环前不得注册虚构的生产 `IDeviceGateway`。
+
+WPF 实现约定（0.6.0 起，源于实测踩坑）：
+- **禁用 `ContentControl` + `ContentTemplate` 渲染列表**：Content 为 null 时模板不实例化，
+  列表整体空白；集合一律内联 `ItemsControl` / `DataGrid`；
+- 元素上不得同时设 `Visibility`（绑定父 VM）与 `DataContext`（绑定子 VM）——Visibility 会在
+  错误的 DataContext 上解析失败导致常显，需用外层 Grid 分担 Visibility；
+- 所有可交互控件必须带 `AutomationProperties.AutomationId`（供 UIAutomation / Smoke 驱动）；
+  RadioButton 导航项依赖「选中态 `IsSelected` 变化 → Navigate」绑定，程序化 Select 与
+  鼠标点击等价，勿再新增仅依赖 Command 的导航路径。

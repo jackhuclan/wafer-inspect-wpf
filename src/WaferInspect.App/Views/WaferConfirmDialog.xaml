@@ -1,0 +1,35 @@
+<Window x:Class="WaferInspectHMI.Views.WaferConfirmDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="确认晶圆信息" Width="440" Height="290"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{StaticResource Surface}" FontFamily="Microsoft YaHei UI"
+        ShowInTaskbar="False">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="确认晶圆信息" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+            <TextBlock Text="F-3.1.10-11：可自定义 LotId 与 WaferId；BR-14：自定义值优先级高于 OCR 结果。"
+                       FontSize="11.5" Foreground="{StaticResource Text3}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="批次 ID（LotId）" Style="{StaticResource MetaText}"/>
+            <TextBox x:Name="LotBox" Height="32" Margin="0,4,0,12" Padding="8,0" VerticalContentAlignment="Center" FontSize="13"/>
+            <TextBlock Text="晶圆 ID（WaferId）" Style="{StaticResource MetaText}"/>
+            <TextBox x:Name="WaferBox" Height="32" Margin="0,4,0,8" Padding="8,0" VerticalContentAlignment="Center" FontSize="13"/>
+            <TextBlock Text="留空表示沿用 OCR 自动识别的值（OCR 设备接入搁置 T-029）。"
+                       FontSize="11" Foreground="{StaticResource Text3}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="取消" Style="{StaticResource GhostButton}" Width="88" Margin="0,0,8,0" Click="Cancel_Click"/>
+            <Button Content="确认" Style="{StaticResource PrimaryButton}" Width="88" Click="Ok_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

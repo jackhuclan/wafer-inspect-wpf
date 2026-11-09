@@ -4,6 +4,7 @@ using WaferInspect.Core.Devices;
 using WaferInspect.Core.Events;
 using WaferInspect.Core.Maps;
 using WaferInspect.Core.Navigation;
+using WaferInspect.Core.Run;
 using WaferInspect.Core.Security;
 using WaferInspect.Core.Simulation;
 
@@ -24,6 +25,12 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IDataSource>(provider => provider.GetRequiredService<ISimulationData>());
         services.AddSingleton<IMapRenderer, WaferMapRenderer>();
         services.AddSingleton<IEventSource, InMemoryEventSource>();
+        services.AddSingleton<IAlarmCenter, InMemoryAlarmCenter>();
+        services.AddSingleton<WaferRunController>();
+        services.AddSingleton<ManualLoadSequencer>();
+        // P1：模拟 Job 清单；H02 配方库（P2）就绪后替换为真实 IJobCatalog 实现。
+        services.AddSingleton<IJobCatalog, SimulatedJobCatalog>();
+        services.AddSingleton<SelfCheckService>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
         services.AddSingleton<IAccountStore, InMemoryAccountStore>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();

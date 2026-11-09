@@ -1,0 +1,662 @@
+<UserControl x:Class="WaferInspectHMI.Views.DetectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Microsoft YaHei UI">
+    <UserControl.Resources>
+        <!-- 晶圆圆形裁剪（与总览页同一形状，避免两处各画一张 Map 的坐标规则） -->
+        <GeometryGroup x:Key="WaferClip">
+            <EllipseGeometry Center="120,120" RadiusX="113" RadiusY="113"/>
+        </GeometryGroup>
+
+        <Style x:Key="Box" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Surface}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+
+        <Style x:Key="BoxTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+        </Style>
+
+        <Style x:Key="KeyText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+        </Style>
+
+        <Style x:Key="ValText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
+        </Style>
+
+        <Style x:Key="MiniButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+        </Style>
+
+        <Style x:Key="PortTab" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource AccentSoft}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ModeTab" TargetType="RadioButton">
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{StaticResource Surface2}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="6" Padding="12,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============ 扫描状态栏（F-3.1.1-02） ============ -->
+        <Border Grid.Row="0" Style="{StaticResource Box}" Padding="12,7" Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource Accent}" Margin="0,0,7,0"/>
+                    <TextBlock Text="{Binding ScanStatusText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                </StackPanel>
+
+                <!-- BR-74：高等级报警未处理时禁止开始运行 -->
+                <Border Grid.Column="1" Background="{StaticResource DangerSoft}" CornerRadius="6"
+                        Padding="8,3" Margin="12,0" HorizontalAlignment="Left"
+                        Visibility="{Binding HasInterlock, Converter={StaticResource BoolVis}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="运行已拦截" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Danger}" Margin="0,0,6,0"/>
+                        <TextBlock Text="{Binding InterlockText}" FontSize="11" Foreground="{StaticResource Danger}" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="当前 Job：" Style="{StaticResource KeyText}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding JobNameText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding CheckedText}" Style="{StaticResource KeyText}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="290"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="372"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ============ 栏 1：料盒信息（F-3.1.1-01 / F-3.1.2） ============ -->
+            <Grid Grid.Column="0" Margin="0,0,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource Box}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,7">
+                            <TextBlock Text="料盒信息" Style="{StaticResource BoxTitle}"/>
+                            <TextBlock Text="双 Port · 25 层槽位" Style="{StaticResource KeyText}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <!-- F-3.1.2-02：Port1 / Port2，蓝色高亮为当前选中 LoadPort -->
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Ports}" Margin="0,0,0,7">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource PortTab}" Margin="0,0,6,0"
+                                            Command="{Binding DataContext.SelectPortCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding PortId}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding PortId}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding CassetteText}" FontSize="10.5" Opacity="0.85" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Grid Grid.Row="2" Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="26"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="46"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="层" Style="{StaticResource KeyText}"/>
+                            <TextBlock Grid.Column="1" Text="WaferId（OCR 可编辑）" Style="{StaticResource KeyText}"/>
+                            <TextBlock Grid.Column="2" Text="在位" Style="{StaticResource KeyText}" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="状态" Style="{StaticResource KeyText}" HorizontalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- F-3.1.2-03/04/05：WaferId 可编辑、在位、勾选、运行状态 -->
+                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding CurrentPort.Slots}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,2">
+                                            <Grid Height="24">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="26"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="44"/>
+                                                    <ColumnDefinition Width="46"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding IndexText}" FontSize="11"
+                                                           Foreground="{StaticResource Text3}" VerticalAlignment="Center" FontFamily="{StaticResource Mono}"/>
+                                                <TextBox Grid.Column="1" Text="{Binding WaferId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                         IsEnabled="{Binding HasWafer}" Height="21" FontSize="11"
+                                                         Padding="4,0" VerticalContentAlignment="Center" BorderThickness="0"
+                                                         Background="Transparent" Foreground="{StaticResource Text}"/>
+                                                <CheckBox Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}" IsEnabled="{Binding HasWafer}"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding StateText}" FontSize="10.5"
+                                                           Foreground="{StaticResource Text3}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <!-- F-3.1.2-06/07/11/14/15/16 + EFEM 设置入口（F-3.1.2-13） -->
+                        <StackPanel Grid.Row="4" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <RadioButton Content="手动" Style="{StaticResource ModeTab}" GroupName="LoadMode"
+                                             IsChecked="{Binding IsManual, Mode=OneWay}"
+                                             Command="{Binding SetModeCommand}" CommandParameter="Manual"/>
+                                <RadioButton Content="自动" Style="{StaticResource ModeTab}" GroupName="LoadMode"
+                                             IsChecked="{Binding IsAuto, Mode=OneWay}"
+                                             Command="{Binding SetModeCommand}" CommandParameter="Auto"/>
+                                <RadioButton Content="半自动" Style="{StaticResource ModeTab}" GroupName="LoadMode"
+                                             IsChecked="{Binding IsSemiAuto, Mode=OneWay}"
+                                             Command="{Binding SetModeCommand}" CommandParameter="SemiAuto"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding ModeHint}" FontSize="10.5" Foreground="{StaticResource Text3}"
+                                       TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                            <WrapPanel>
+                                <Button Content="上料"
+                                    AutomationProperties.AutomationId="BtnLoad" Style="{StaticResource MiniButton}" Command="{Binding LoadCommand}"/>
+                                <Button Content="下料"
+                                    AutomationProperties.AutomationId="BtnUnload" Style="{StaticResource MiniButton}" Command="{Binding UnloadCommand}"/>
+                                <Button Content="全选"
+                                    AutomationProperties.AutomationId="BtnSelectAll" Style="{StaticResource MiniButton}" Command="{Binding SelectAllCommand}"/>
+                                <Button Content="反选"
+                                    AutomationProperties.AutomationId="BtnInvertAll" Style="{StaticResource MiniButton}" Command="{Binding InvertAllCommand}"/>
+                                <Button Content="确认" Style="{StaticResource MiniButton}"
+                                    AutomationProperties.AutomationId="BtnConfirmSel" Command="{Binding ConfirmSelectionCommand}"/>
+                                <Button Content="⟳ 扫描料盒"
+                                    AutomationProperties.AutomationId="BtnScanCassette" Style="{StaticResource MiniButton}" Command="{Binding ScanCassetteCommand}"/>
+                                <Button Content="⚙ EFEM 设置"
+                                    AutomationProperties.AutomationId="BtnEfemSettings" Style="{StaticResource MiniButton}" Command="{Binding OpenEfemSettingsCommand}"
+                                        ToolTip="图标按钮名称待确认（T-001）"/>
+                            </WrapPanel>
+
+                            <TextBlock Text="{Binding ManualPrompt}" FontSize="10.5" Foreground="{StaticResource Warn}"
+                                       TextWrapping="Wrap" Margin="0,0,0,4"/>
+
+                            <WrapPanel>
+                                <Button Content="▲ 上料位"
+                                    AutomationProperties.AutomationId="BtnManual1" Style="{StaticResource MiniButton}" Command="{Binding MoveToLoadPositionCommand}"/>
+                                <Button Content="开安全门"
+                                    AutomationProperties.AutomationId="BtnManual2" Style="{StaticResource MiniButton}" Command="{Binding OpenSafetyDoorCommand}"/>
+                                <Button Content="放片完成"
+                                    AutomationProperties.AutomationId="BtnManual3" Style="{StaticResource MiniButton}" Command="{Binding PlaceWaferCommand}"/>
+                                <Button Content="关安全门"
+                                    AutomationProperties.AutomationId="BtnManual4" Style="{StaticResource MiniButton}" Command="{Binding CloseSafetyDoorCommand}"/>
+                                <Button Content="◎ 拍照位"
+                                    AutomationProperties.AutomationId="BtnManual5" Style="{StaticResource MiniButton}" Command="{Binding MoveToPhotoPositionCommand}"/>
+                                <Button Content="重置流程"
+                                    AutomationProperties.AutomationId="BtnManualReset" Style="{StaticResource MiniButton}" Command="{Binding ResetManualCommand}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ============ 扫描进度（F-3.1.1-02 附 / F-3.1.3-01~07） ============ -->
+                <Border Grid.Row="1" Style="{StaticResource Box}" Margin="0,8,0,0">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="扫描进度" Style="{StaticResource BoxTitle}"/>
+                            <TextBlock Text="{Binding ProgressText}" FontSize="15" FontWeight="Bold"
+                                       Foreground="{StaticResource Accent}" HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <ProgressBar Style="{StaticResource FlatProgress}" Height="6" Minimum="0" Maximum="100"
+                                     Value="{Binding ProgressPercent, Mode=OneWay}" Margin="0,0,0,8"/>
+                        <UniformGrid Columns="2">
+                            <StackPanel Margin="0,0,0,5">
+                                <TextBlock Text="扫描时间" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding ElapsedText}" Style="{StaticResource ValText}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,5">
+                                <TextBlock Text="扫描 Die" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding ScannedDies}" Style="{StaticResource ValText}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,5">
+                                <TextBlock Text="全部缺陷" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding TotalDefectCount}" Style="{StaticResource ValText}" Foreground="{StaticResource Danger}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,5">
+                                <TextBlock Text="无缺陷 Die" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding DefectFreeDies}" Style="{StaticResource ValText}" Foreground="{StaticResource Ok}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="有缺陷 Die" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding DefectiveDies}" Style="{StaticResource ValText}" Foreground="{StaticResource Warn}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="复判个数" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding ReviewCount}" Style="{StaticResource ValText}"
+                                           ToolTip="彩色相机复判的缺陷个数（F-3.1.3-07），与 H08 人工复判数语义不同"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ============ 栏 2：视图区（F-3.1.1-04 / F-3.1.4-01~04） ============ -->
+            <Grid Grid.Column="1" Margin="0,0,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource Box}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                            <TextBlock Text="视图区" Style="{StaticResource BoxTitle}"/>
+                            <TextBlock Text="{Binding ViewModeText}" Style="{StaticResource KeyText}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <!-- 双击切换图谱 / 图片视窗（F-3.1.4-03）；Map 内容唯一来源 H05 -->
+                        <Grid Grid.Row="1" Background="{StaticResource Surface2}" MouseLeftButtonDown="ViewArea_MouseLeftButtonDown"
+                              ToolTip="双击切换图谱 / 图片视窗">
+                            <Viewbox Stretch="Uniform" Margin="6">
+                                <Grid Width="240" Height="240">
+                                    <Ellipse Width="236" Height="236" Fill="#EDF2F8" Stroke="#94A8C2" StrokeThickness="1.4" Margin="2,2,0,0"/>
+                                    <ItemsControl ItemsSource="{Binding MapCells}" Width="240" Height="240" Clip="{StaticResource WaferClip}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                                <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Rectangle Width="9.2" Height="9.2" RadiusX="1" RadiusY="1" Fill="{Binding Fill}" ToolTip="{Binding Tip}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Path Data="M113 238 L120 228 L127 238 Z" Fill="White" Stroke="#94A8C2" StrokeThickness="1"/>
+                                </Grid>
+                            </Viewbox>
+
+                            <!-- F-3.1.4-02：图片视窗（前提开启存图 BR-07，未开启时不得用占位图冒充结果） -->
+                            <Border Background="{StaticResource Surface}" Margin="6" Padding="16"
+                                    Visibility="{Binding IsImageView, Converter={StaticResource BoolVis}}">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock Text="图片视窗" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Text2}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="未开启存图（BR-07），无相机图片可显示。" FontSize="11.5"
+                                               Foreground="{StaticResource Text3}" Margin="0,6,0,0" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                                    <TextBlock Text="相机图像采集归 H06，设备连接搁置（T-029）。" FontSize="11"
+                                               Foreground="{StaticResource Text3}" Margin="0,2,0,0" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="双击切回图谱视窗" FontSize="11" Foreground="{StaticResource Accent}"
+                                               Margin="0,10,0,0" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <WrapPanel Grid.Row="2" Margin="0,6,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                                <Rectangle Width="9" Height="9" Fill="#E9F1FD" Margin="0,0,4,0"/>
+                                <TextBlock FontSize="10.5" Foreground="{StaticResource Text3}"><Run Text="正常 "/><Run Text="{Binding MapNormal, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                                <Rectangle Width="9" Height="9" Fill="#9CC4F8" Margin="0,0,4,0"/>
+                                <TextBlock FontSize="10.5" Foreground="{StaticResource Text3}"><Run Text="轻微 "/><Run Text="{Binding MapLight, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                                <Rectangle Width="9" Height="9" Fill="#F5B942" Margin="0,0,4,0"/>
+                                <TextBlock FontSize="10.5" Foreground="{StaticResource Text3}"><Run Text="警告 "/><Run Text="{Binding MapWarn, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                                <Rectangle Width="9" Height="9" Fill="#E5484D" Margin="0,0,4,0"/>
+                                <TextBlock FontSize="10.5" Foreground="{StaticResource Text3}"><Run Text="缺陷 "/><Run Text="{Binding MapBad, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                            </StackPanel>
+                            <TextBlock FontSize="10.5" Foreground="{StaticResource Text3}">
+                                <Run Text="良率 "/><Run Text="{Binding MapYieldText, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource Ok}"/>
+                            </TextBlock>
+                        </WrapPanel>
+                    </Grid>
+                </Border>
+
+                <!-- F-3.1.4-02 图片视窗（缩略） + F-3.1.4-04 EFEM 动画视窗 -->
+                <Grid Grid.Row="1" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource Box}" Margin="0,0,4,0">
+                        <StackPanel>
+                            <TextBlock Text="动画视窗" Style="{StaticResource BoxTitle}" Margin="0,0,0,4"/>
+                            <Border Background="{StaticResource Surface2}" CornerRadius="6" Height="78">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock Text="EFEM 机械手 / 装载端口动画" FontSize="10.5" Foreground="{StaticResource Text3}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="设备未连接，动画搁置（T-029）" FontSize="10" Foreground="{StaticResource Warn}"
+                                               Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource Box}" Margin="4,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="图片视窗" Style="{StaticResource BoxTitle}" Margin="0,0,0,4"/>
+                            <Border Background="{StaticResource Surface2}" CornerRadius="6" Height="78">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock Text="未开启存图（BR-07）" FontSize="10.5" Foreground="{StaticResource Text3}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="采集归 H06，设备连接搁置（T-029）" FontSize="10" Foreground="{StaticResource Text3}"
+                                               Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- ============ 栏 3：快捷操作 / 晶圆 / 批次 / 缺陷 / 日志 ============ -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 快捷操作栏（F-3.1.1-05 / F-3.1.5-01~12） -->
+                <Border Grid.Row="0" Style="{StaticResource Box}">
+                    <StackPanel>
+                        <TextBlock Text="快捷操作" Style="{StaticResource BoxTitle}" Margin="0,0,0,6"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Button Grid.Row="0" Grid.Column="0" Content="选择 Job"
+                                    AutomationProperties.AutomationId="BtnSelectJob" Height="28" Margin="0,0,4,4"
+                                    Style="{StaticResource GhostButton}" Command="{Binding SelectJobCommand}"/>
+                            <Button Grid.Row="0" Grid.Column="1" Content="应用"
+                                    AutomationProperties.AutomationId="BtnApply" Height="28" Margin="4,0,0,4"
+                                    Style="{StaticResource GhostButton}" Command="{Binding ApplyCommand}"/>
+                            <Button Grid.Row="1" Grid.Column="0" Content="查看"
+                                    AutomationProperties.AutomationId="BtnViewJob" Height="28" Margin="0,0,4,4"
+                                    Style="{StaticResource GhostButton}" Command="{Binding ViewJobCommand}"/>
+                            <Button Grid.Row="1" Grid.Column="1" Content="配方管理"
+                                    AutomationProperties.AutomationId="BtnRecipeMgmt" Height="28" Margin="4,0,0,4"
+                                    Style="{StaticResource GhostButton}" Command="{Binding OpenRecipeManagementCommand}"/>
+                            <Button Grid.Row="2" Grid.Column="0" Content="Clear"
+                                    AutomationProperties.AutomationId="BtnClear" Height="28" Margin="0,0,4,4"
+                                    Style="{StaticResource GhostButton}" Command="{Binding ClearCommand}"/>
+                            <Button Grid.Row="2" Grid.Column="1" Content="WDI 初始化"
+                                    AutomationProperties.AutomationId="BtnWdiInit" Height="28" Margin="4,0,0,4"
+                                    Style="{StaticResource GhostButton}" Command="{Binding WdiInitCommand}"/>
+                            <Button Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Content="确认晶圆信息"
+                                    AutomationProperties.AutomationId="BtnConfirmWafer" Height="28"
+                                    Style="{StaticResource GhostButton}" Command="{Binding ConfirmWaferInfoCommand}"/>
+                        </Grid>
+
+                        <!-- F-3.1.5-01/03/02/04/05：开始运行 ⇄ 继续运行 为同一按钮 -->
+                        <Button Content="{Binding StartButtonText}" Height="32"
+                                    AutomationProperties.AutomationId="BtnStart" Margin="0,4,0,4"
+                                Style="{StaticResource PrimaryButton}" Command="{Binding StartOrResumeCommand}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="暂停运行"
+                                    AutomationProperties.AutomationId="BtnPause" Height="28" Margin="0,0,4,0"
+                                    Style="{StaticResource GhostButton}" Command="{Binding PauseRunCommand}"/>
+                            <Button Grid.Column="1" Content="停止运行"
+                                    AutomationProperties.AutomationId="BtnStop" Height="28" Margin="2,0,2,0"
+                                    Style="{StaticResource GhostButton}" Command="{Binding StopCommand}"/>
+                            <Button Grid.Column="2" Content="结批"
+                                    AutomationProperties.AutomationId="BtnEndBatch" Height="28" Margin="4,0,0,0"
+                                    Style="{StaticResource GhostButton}" Command="{Binding EndBatchCommand}"/>
+                        </Grid>
+
+                        <!-- F-3.1.5-07：Job 信息 4 项 -->
+                        <Border Background="{StaticResource Surface2}" CornerRadius="6" Padding="8,6" Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,4">
+                                    <TextBlock Text="JobName" Style="{StaticResource KeyText}"/>
+                                    <TextBlock Text="{Binding JobNameText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Text}" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,4">
+                                    <TextBlock Text="WaferSize" Style="{StaticResource KeyText}"/>
+                                    <TextBlock Text="{Binding WaferSizeText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="0">
+                                    <TextBlock Text="DieSizeX" Style="{StaticResource KeyText}"/>
+                                    <TextBlock Text="{Binding JobDieSizeXText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="1">
+                                    <TextBlock Text="DieSizeY" Style="{StaticResource KeyText}"/>
+                                    <TextBlock Text="{Binding JobDieSizeYText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <TextBlock Text="{Binding QueueText}" Style="{StaticResource KeyText}" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 晶圆信息（F-3.1.1-06 / F-3.1.6-01~04） -->
+                <Border Grid.Row="1" Style="{StaticResource Box}" Margin="0,8,0,0">
+                    <StackPanel>
+                        <TextBlock Text="晶圆信息" Style="{StaticResource BoxTitle}" Margin="0,0,0,6"/>
+                        <UniformGrid Columns="2">
+                            <StackPanel Margin="0,0,0,5">
+                                <TextBlock Text="批次 ID" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding LotId}" Style="{StaticResource ValText}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,5">
+                                <TextBlock Text="晶圆 ID" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding WaferId}" Style="{StaticResource ValText}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Die 长度 X" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding DieSizeXText}" Style="{StaticResource ValText}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Die 宽度 Y" Style="{StaticResource KeyText}"/>
+                                <TextBlock Text="{Binding DieSizeYText}" Style="{StaticResource ValText}"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 批次信息（F-3.1.1-07 / F-3.1.7-01~03，BR-11 固定三类） -->
+                <Border Grid.Row="2" Style="{StaticResource Box}" Margin="0,8,0,0">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="批次信息" Style="{StaticResource BoxTitle}"/>
+                            <TextBlock Style="{StaticResource KeyText}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Run Text="合计 "/><Run Text="{Binding BatchTotalText, Mode=OneWay}"/>
+                            </TextBlock>
+                        </DockPanel>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="76"/><ColumnDefinition Width="*"/><ColumnDefinition Width="46"/>
+                                <ColumnDefinition Width="52"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="正常 Die" FontSize="11" Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                            <ProgressBar Grid.Column="1" Style="{StaticResource FlatProgress}" Height="5" Maximum="100"
+                                         Foreground="{StaticResource Ok}" Value="{Binding NormalPctValue, Mode=OneWay}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding NormalPct}" FontSize="10.5" Foreground="{StaticResource Text3}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding NormalDies}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Text}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="76"/><ColumnDefinition Width="*"/><ColumnDefinition Width="46"/>
+                                <ColumnDefinition Width="52"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="缺陷 Die" FontSize="11" Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                            <ProgressBar Grid.Column="1" Style="{StaticResource FlatProgress}" Height="5" Maximum="100"
+                                         Foreground="{StaticResource Warn}" Value="{Binding DefectPctValue, Mode=OneWay}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding DefectPct}" FontSize="10.5" Foreground="{StaticResource Text3}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding DefectDies}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Text}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="76"/><ColumnDefinition Width="*"/><ColumnDefinition Width="46"/>
+                                <ColumnDefinition Width="52"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="检测失败 Die" FontSize="11" Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                            <ProgressBar Grid.Column="1" Style="{StaticResource FlatProgress}" Height="5" Maximum="100"
+                                         Foreground="{StaticResource Danger}" Value="{Binding FailedPctValue, Mode=OneWay}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding FailedPct}" FontSize="10.5" Foreground="{StaticResource Text3}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding FailedDies}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Text}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 缺陷列表（F-3.1.1-08 / F-3.1.8-01~07） -->
+                <Border Grid.Row="3" Style="{StaticResource Box}" Margin="0,8,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                            <TextBlock Text="缺陷列表" Style="{StaticResource BoxTitle}"/>
+                            <TextBlock Text="Zone / 类别 / 行 / 列 / 长 / 宽 / 面积（μm、μm²）" Style="{StaticResource KeyText}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1" Style="{StaticResource Grid}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  ItemsSource="{Binding Defects}" HeadersVisibility="Column" MinHeight="90">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Zone" Binding="{Binding Zone}" Width="64"/>
+                                <DataGridTextColumn Header="类别" Binding="{Binding Category}" Width="64"/>
+                                <DataGridTextColumn Header="行" Binding="{Binding Row}" Width="38"/>
+                                <DataGridTextColumn Header="列" Binding="{Binding Column}" Width="38"/>
+                                <DataGridTextColumn Header="长度" Binding="{Binding Length}" Width="*"/>
+                                <DataGridTextColumn Header="宽度" Binding="{Binding Width}" Width="*"/>
+                                <DataGridTextColumn Header="面积" Binding="{Binding Area}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <!-- 日志信息（F-3.1.1-09 / F-3.1.9-01~02，BR-18 时间格式） -->
+                <Border Grid.Row="4" Style="{StaticResource Box}" Margin="0,8,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="日志信息" Style="{StaticResource BoxTitle}" Margin="0,0,0,4"/>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="70">
+                            <ItemsControl ItemsSource="{Binding Logs}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,1,0,1">
+                                            <TextBlock Text="{Binding Time}" FontSize="10.5" FontFamily="{StaticResource Mono}"
+                                                       Foreground="{StaticResource Text3}" Margin="0,0,6,0"/>
+                                            <TextBlock Text="{Binding LevelText}" FontSize="10.5" Foreground="{Binding LevelBrush}" Margin="0,0,6,0"/>
+                                            <TextBlock Text="{Binding Message}" FontSize="10.5" TextWrapping="Wrap"
+                                                       Foreground="{Binding LevelBrush}" MaxWidth="250"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

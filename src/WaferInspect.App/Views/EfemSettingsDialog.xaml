@@ -1,0 +1,108 @@
+<Window x:Class="WaferInspectHMI.Views.EfemSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="EFEM 设置" Width="560" Height="560"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{StaticResource Surface}" FontFamily="Microsoft YaHei UI"
+        ShowInTaskbar="False">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="EFEM 设置" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+            <TextBlock Text="F-3.1.2-17~25/27：料盒 ID / 尺寸 / 选择、上下料盒、Unlock、条码设置与角度、扫描料盒、翻面。"
+                       FontSize="11.5" Foreground="{StaticResource Text3}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- 料盒 ID / 尺寸 -->
+                <TextBlock Text="料盒信息" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text2}" Margin="0,0,0,6"/>
+                <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="左料盒 ID" Style="{StaticResource MetaText}"/>
+                            <TextBlock x:Name="LeftPortText" Text="Port_1" FontSize="13" Foreground="{StaticResource Text}" Margin="0,3,0,8"/>
+                            <TextBlock Text="料盒尺寸（EFEM 自动识别）" Style="{StaticResource MetaText}"/>
+                            <TextBlock x:Name="LeftSizeText" Text="300 mm · 25 层" FontSize="13" Foreground="{StaticResource Text}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="右料盒 ID" Style="{StaticResource MetaText}"/>
+                            <TextBlock x:Name="RightPortText" Text="Port_2" FontSize="13" Foreground="{StaticResource Text}" Margin="0,3,0,8"/>
+                            <TextBlock Text="料盒尺寸（EFEM 自动识别）" Style="{StaticResource MetaText}"/>
+                            <TextBlock x:Name="RightSizeText" Text="300 mm · 25 层" FontSize="13" Foreground="{StaticResource Text}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- 料盒选择与上下料 -->
+                <TextBlock Text="料盒选择与上下料" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text2}" Margin="0,0,0,6"/>
+                <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="待操作料盒" Style="{StaticResource MetaText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox x:Name="PortCombo" Width="140" Height="28" SelectionChanged="PortCombo_SelectionChanged"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button x:Name="LockButton" Content="上料盒" Style="{StaticResource GhostButton}" Width="96" Margin="0,0,8,0" Click="Lock_Click"/>
+                            <Button Content="Unlock" Style="{StaticResource GhostButton}" Width="96" Margin="0,0,8,0" Click="Unlock_Click"/>
+                            <Button Content="扫描料盒" Style="{StaticResource GhostButton}" Width="96" Click="Scan_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="LockHint" Text="上料盒：锁定料盒并禁止打开仓门；下料盒：解除锁定并允许开仓（F-3.1.2-20/21）"
+                                   FontSize="11" Foreground="{StaticResource Text3}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 条码设置 -->
+                <TextBlock Text="条码设置" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text2}" Margin="0,0,0,6"/>
+                <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="正反面" Style="{StaticResource MetaText}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <RadioButton x:Name="FrontRadio" Content="正面" GroupName="BarcodeSide" IsChecked="True" Margin="0,0,14,0" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="BackRadio" Content="反面" GroupName="BarcodeSide" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <TextBlock Text="角度" Style="{StaticResource MetaText}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <RadioButton x:Name="Angle0" Content="0°" GroupName="BarcodeAngle" IsChecked="True" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="Angle90" Content="90°" GroupName="BarcodeAngle" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="Angle180" Content="180°" GroupName="BarcodeAngle" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="Angle270" Content="270°" GroupName="BarcodeAngle" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="BR-03：条码设置仅正面/反面；BR-02：角度仅 0/90/180/270°。" FontSize="11"
+                                   Foreground="{StaticResource Text3}" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 其它动作 -->
+                <TextBlock Text="其它动作" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text2}" Margin="0,0,0,6"/>
+                <Border Style="{StaticResource Card}" Padding="12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="翻面" Style="{StaticResource GhostButton}" Width="96" Margin="0,0,8,0" Click="Flip_Click"/>
+                            <Button Content="EFEM 错误清除" Style="{StaticResource GhostButton}" Width="130" Click="ClearError_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="翻面（F-3.1.2-27）手册标注「推荐忽略」，按级 C 保留；语义待确认 T-002。EFEM 错误清除归 H09（B-18）。"
+                                   FontSize="11" Foreground="{StaticResource Text3}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <DockPanel Grid.Row="2" Margin="0,12,0,0">
+            <TextBlock Text="说明：本弹窗的料盒锁定 / Unlock / 扫描 / 翻面均为设备动作，设备连接搁置（T-029）。"
+                       FontSize="11" Foreground="{StaticResource Text3}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="330"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="取消" Style="{StaticResource GhostButton}" Width="88" Margin="0,0,8,0" Click="Cancel_Click"/>
+                <Button Content="确定" Style="{StaticResource PrimaryButton}" Width="88" Click="Ok_Click"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

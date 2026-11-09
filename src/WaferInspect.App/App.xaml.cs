@@ -31,7 +31,6 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-
         try
         {
             _host = Host.CreateDefaultBuilder(e.Args)
@@ -42,7 +41,9 @@ public partial class App : Application
                     services.AddWaferInspectCore();
                     services.AddSingleton<ILiveDataPump, DispatcherTimerLiveDataPump>();
                     services.AddSingleton<INavGroupFactory, NavGroupFactory>();
-                    services.AddSingleton<ModuleViewModelBase, H01RunViewModel>();
+                    services.AddSingleton<IH01DialogService, H01DialogService>();
+                    services.AddSingleton<H01RunViewModel>();
+                    services.AddSingleton<ModuleViewModelBase>(provider => provider.GetRequiredService<H01RunViewModel>());
                     services.AddSingleton<ModuleViewModelBase, H02RecipeViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H03AlignmentViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H04InspectionViewModel>();
@@ -85,6 +86,8 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            // 启动期异常落盘，便于无控制台环境下诊断（保留：主界面静默白屏的教训）。
+            try { System.IO.File.WriteAllText("startup-error.log", ex.ToString()); } catch { /* 忽略 */ }
             MessageBox.Show(
                 $"应用启动失败：{ex.Message}\n\n{ex}",
                 "WaferInspect 启动错误",

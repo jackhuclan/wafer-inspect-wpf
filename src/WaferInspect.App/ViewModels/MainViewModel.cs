@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using WaferInspect.Core.Data;
+using WaferInspect.Core.Events;
 using WaferInspect.Core.Maps;
 using WaferInspect.Core.Navigation;
 using WaferInspect.Core.Security;
@@ -34,6 +35,8 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private readonly ILiveDataPump _pump;
     private readonly IModuleViewModelRegistry _moduleRegistry;
     private readonly IAuthorizationService _authorization;
+    private readonly IAlarmCenter _alarmCenter;
+    private readonly H01RunViewModel _detection;
     private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
     private readonly Random _rng = new(20261109);
@@ -56,6 +59,8 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         ILiveDataPump pump,
         IModuleViewModelRegistry moduleRegistry,
         IAuthorizationService authorization,
+        IAlarmCenter alarmCenter,
+        H01RunViewModel detection,
         ILogger<MainViewModel> logger)
     {
         _catalog = catalog;
@@ -66,9 +71,29 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         _pump = pump;
         _moduleRegistry = moduleRegistry;
         _authorization = authorization;
+        _alarmCenter = alarmCenter;
+        _detection = detection;
         _logger = logger;
 
+        // 模块内导航（例如「配方管理」跳 H02）复用主窗口统一导航入口。
+        _detection.NavigationRequested += (_, key) => Navigate(key);
+
+        // H09 最小闭环（P1）：告警中心页展示实时活动报警，蜂鸣器解除 / 手动处理（BR-74/75）。
+        _alarmCenter.AlarmsChanged += (_, _) => RefreshLiveAlarms();
+
         BuildNav();
+
+        // 选中态 → 导航的双向绑定：UIA / 自动化 / 程序化选中导航项与鼠标点击等价
+        // （Navigate 内部先改 CurrentView 再同步选中，因此不会形成递归）。
+        foreach (var item in NavGroups.SelectMany(g => g.Items))
+        {
+            item.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(NavItem.IsSelected) && item.IsSelected && CurrentView != item.Key)
+                    Navigate(item.Key);
+            };
+        }
+
         BuildDevices();
         BuildDefects();
         BuildTasks();
@@ -135,6 +160,9 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     [ObservableProperty] private DataTable _moduleTable;
 
     /* ---------------- 绑定契约：一次性构建的集合与计算属性 ---------------- */
+    /// <summary>H01 检测任务页 ViewModel（P1 完整实现），由 DetectionView 直接绑定。</summary>
+    public H01RunViewModel Detection => _detection;
+
     public List<NavGroup> NavGroups { get; private set; }
     public List<DeviceItem> Devices { get; private set; }
     public List<DefectItem> Defects { get; private set; }
@@ -166,6 +194,58 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
 
     public int UnackedCount => Alarms.Count(a => !a.Acked);
     public string AlarmBadgeText => $"{UnackedCount} 条待处理";
+
+    /* ---------------- H09 最小闭环：活动机台报警（BR-74/75） ---------------- */
+
+    /// <summary>来自 <see cref="IAlarmCenter"/> 的实时活动报警；与检测任务页共用同一报警中心。</summary>
+    [ObservableProperty] private List<AlarmItem> _liveAlarms = [];
+
+    private void RefreshLiveAlarms()
+    {
+        LiveAlarms = _alarmCenter.ActiveAlarms.Select(a => new AlarmItem
+        {
+            Id = a.AlarmId,
+            Severity = a.Severity == AlarmSeverity.High ? "高等级" : "低等级",
+            Title = a.Message,
+            Description = a.Severity == AlarmSeverity.High
+                ? "未处理时拦截开始运行（BR-74）"
+                : "随蜂鸣器解除一并清除（BR-74）",
+            Time = a.StartTime.ToString("HH:mm:ss"),
+            SeverityBrush = B(a.Severity == AlarmSeverity.High ? "#C62828" : "#B45309"),
+            SeverityBack = B(a.Severity == AlarmSeverity.High ? "#FDECEC" : "#FFF3E0"),
+            Acked = false
+        }).ToList();
+    }
+
+    /// <summary>蜂鸣器解除（F-3.6.1-03）：低等级报警随之一并清除（BR-74）；蜂鸣器/四色灯设备联动搁置（T-025）。</summary>
+    [RelayCommand]
+    private void BuzzerClear()
+    {
+        int cleared = _alarmCenter.ClearBuzzer();
+        StatusMessage = cleared > 0
+            ? $"蜂鸣器解除：{cleared} 条低等级报警一并清除（BR-74）；高等级报警须手动处理"
+            : "蜂鸣器解除：当前无可随声音清除的低等级报警";
+    }
+
+    /// <summary>手动处理高等级报警（BR-75）；处理后运行拦截自动解除。</summary>
+    [RelayCommand]
+    private void HandleAlarm(string id)
+    {
+        if (!_alarmCenter.Handle(id))
+        {
+            StatusMessage = $"报警 {id} 不存在或已处理";
+            return;
+        }
+        RefreshLiveAlarms();
+        StatusMessage = $"报警 {id} 已手动处理（BR-75）";
+        if (!_alarmCenter.IsRunBlocked)
+            StatusMessage += "；运行拦截已解除";
+    }
+
+    /// <summary>EFEM 错误清除入口（F-3.1.2-26，B-18 归 H09）；设备动作搁置（T-029）。</summary>
+    [RelayCommand]
+    private void EfemErrorClear()
+        => StatusMessage = "[搁置] EFEM 错误清除需下发设备指令，设备连接未接入（T-029），指令未下发";
 
     /* ---------------- 构建数据 ---------------- */
     private static SolidColorBrush B(string hex) => (SolidColorBrush)new BrushConverter().ConvertFrom(hex);

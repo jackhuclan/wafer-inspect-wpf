@@ -1,6 +1,6 @@
 namespace WaferInspectHMI.ViewModels.Modules;
 
-public sealed class H01RunViewModel() : ModuleViewModelBase("H01", "检测运行与任务控制", "P1");
+// H01 已在 P1 由完整实现 H01RunViewModel 取代（本文件只保留尚未迁移的骨架）。
 public sealed class H02RecipeViewModel() : ModuleViewModelBase("H02", "配方与 Job 管理", "P2");
 public sealed class H03AlignmentViewModel() : ModuleViewModelBase("H03", "对位建模与模板匹配", "P2/P4");
 public sealed class H04InspectionViewModel() : ModuleViewModelBase("H04", "检测算法与 ROI 配置", "P2");
