@@ -15,14 +15,21 @@ public partial class MainWindow : Window
     private readonly MainViewModel _vm;
     private bool _navCollapsed;
 
-    public MainWindow()
+    /// <summary>ViewModel 由通用主机的 DI 容器注入，视图不再自行创建依赖。</summary>
+    public MainWindow(MainViewModel vm)
     {
         InitializeComponent();
-        _vm = new MainViewModel();
+        _vm = vm;
         DataContext = _vm;
         _vm.WindowActionRequested += OnWindowAction;
         StateChanged += (_, _) => UpdateMaximizeIcon();
         UpdateMaximizeIcon();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _vm.WindowActionRequested -= OnWindowAction;
+        base.OnClosed(e);
     }
 
     /* ---------------- 标题栏：拖拽 / 双击 / 窗口三态命令 ---------------- */

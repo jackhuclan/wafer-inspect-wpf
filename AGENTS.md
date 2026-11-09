@@ -41,20 +41,26 @@ wafer-inspect-wpf/
 
 | 项目 | 目标框架 | 职责 | 禁止 |
 |---|---|---|---|
-| `WaferInspect.Core` | `net10.0` | 纯数据契约：**左侧导航配置**（分组、组内项、默认展开状态）、视图 Key 常量 | 引用任何 UI / Windows 类型 |
-| `WaferInspect.App` | `net10.0-windows` (WinExe) | WPF 主程序：Views / ViewModels / Models / Converters / Navigation / Themes | 在 `Core` 里塞 UI 类型 |
+| `WaferInspect.Core` | `net10.0` | 纯数据契约与纯计算：左侧导航配置、视图 Key、可注入的导航目录、确定性模拟算法、`AddWaferInspectCore()` DI 注册扩展 | 引用任何 UI / Windows 类型 |
+| `WaferInspect.App` | `net10.0-windows` (WinExe) | WPF 主程序：Views / ViewModels / Models / Converters / Navigation / Services / Themes，以及 Generic Host 组合根 | 在 `Core` 里塞 UI 类型；在视图里 `new` ViewModel |
 
 `WaferInspect.App` 内部子文件夹按职责命名，不再引入解决方案级子分组：
 
 ```
 src/WaferInspect.App/
-├─ App.xaml(.cs)              应用入口、资源字典合并
-├─ Views/                     窗口与 XAML 视图
-├─ ViewModels/                页面状态编排、命令、1 Hz 数据刷新
-├─ Models/                    绑定模型（NavGroup / NavItem / 任务 / 告警 …）
-├─ Navigation/                把 Core 的纯配置转成运行时导航模型
+├─ App.xaml(.cs)              应用入口、资源字典合并、Generic Host 组合根
+├─ Views/                     窗口与 XAML 视图（构造函数注入 ViewModel）
+├─ ViewModels/                页面状态编排、[ObservableProperty] / [RelayCommand]
+├─ Models/                    绑定模型（ObservableBase / NavGroup / NavItem / 任务 / 告警 …）
+├─ Navigation/                把 Core 的纯配置转成运行时导航模型（实例服务）
+├─ Services/                  1 Hz 数据泵与其 IHostedService 托管
 ├─ Converters/                XAML 值转换器
 └─ Themes/                    语义色板、控件模板、状态样式
+
+src/WaferInspect.Core/
+├─ Navigation/                纯导航配置、INavigationCatalog
+├─ Simulation/                确定性模拟算法 ISimulationData
+└─ DependencyInjection/       AddWaferInspectCore()
 ```
 
 **归属判定顺序**：
@@ -67,7 +73,8 @@ src/WaferInspect.App/
 ### 2.2 `tests/` — 测试项目
 
 命名固定 `WaferInspect.<被测层>.Tests`。当前 `WaferInspect.Core.Tests`（net10.0 + xunit）
-覆盖导航配置的分组完整性、默认展开状态、菜单 Key 唯一性与默认视图归属。
+覆盖导航配置的分组完整性、默认展开状态、菜单 Key 唯一性与默认视图归属，
+并用真实 Generic Host 验证 `AddWaferInspectCore()` 的装配与模拟算法的历史数值。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；
 涉及 WPF 的用例需独立 STA 宿主，当前仅测纯配置层，不引入 WPF 依赖。
@@ -104,7 +111,9 @@ Solution 'WaferInspect'
 | 分层数量 | Core / ViewModel / Adapters / Rendering / App | Core / App 两层 | 当前为单窗口上位机，无设备协议与 3D 渲染层 |
 | `ViewModel` 层 | `net10.0`，禁止引用 WPF | 仍在 `App/ViewModels` | `MainViewModel` 依赖 `DispatcherTimer`、`Geometry`、`Brush`；下沉需先剥离 WPF 类型 |
 | `Nullable` | `enable` | `Core` 已 `enable`；`App` 仍 `disable`（Directory.Build.props 全局注明，Gradual） | 全量启用 App 层会产生 120 条 CS86xx 警告，需整体改造绑定属性契约；随 ViewModel 下沉一并切换 |
-| `assets/` / `docs/` | 有实体目录与验收物证 | 预留 | 引入运行时资产、验收报告后再建目录 |
+| MVVM 框架 | 参考仓库自行实现基类 | `CommunityToolkit.Mvvm 8.4.2`：`ObservableObject` + `[ObservableProperty]` / `[RelayCommand]` 源生成器 | 删除手写 `Observable` / `RelayCommand`；保留 `ObservableBase.Raise()` 兼容跨对象通知 |
+| 应用主机 | 参考仓库的通用主机 | `Microsoft.Extensions.Hosting 10.0.12`：DI、日志、`IHostedService` 生命周期 | `App.OnStartup` 建 Host、`App.OnExit` 停止并释放；`StartupUri` 已移除，窗口由容器解析 |
+| `assets/` / `docs/` | 有实体目录与验收物证 | `docs/` 已有迁移 PRD 与验收依据 | `assets/` 仍预留 |
 
 ---
 
@@ -114,7 +123,8 @@ Solution 'WaferInspect'
 - [ ] 目标框架与所在层一致（Core / tests / tools = `net10.0`，App = `net10.0-windows`）；
 - [ ] 依赖方向单向，无反向引用；`WaferInspect.slnx` 已加入对应分组；
 - [ ] 菜单分组 / 默认展开状态只改 `src/WaferInspect.Core/Navigation/NavConfiguration.cs` 一处；
-- [ ] PackageReference 只写 `Include`，版本在 `Directory.Packages.props`；
+- [ ] PackageReference 只写 `Include`，版本在 `Directory.Packages.props`（CPM）；Core 服务注册走 `AddWaferInspectCore()`；
+- [ ] 窗口 / ViewModel 由 Generic Host 解析，禁止在 View 的 code-behind 里 `new MainViewModel(...)`；新增有生命周期的服务用 `IHostedService`；
 - [ ] `dotnet build WaferInspect.slnx -c Release` 0 警告 0 错误（`TreatWarningsAsErrors=true`）；
 - [ ] `dotnet test WaferInspect.slnx` 全绿；`tools/WaferInspect.Smoke` 启动冒烟通过；
 - [ ] 版本号只改 `Directory.Build.props` 一处；提交信息用中文 Conventional Commits，尾注版本号（如 `feat(nav): … (0.2.0)`）。

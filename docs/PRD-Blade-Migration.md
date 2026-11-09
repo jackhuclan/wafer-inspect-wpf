@@ -75,15 +75,15 @@ Blade 系统用于**有图案晶圆的 2D 综合外观缺陷检测**，具备宏
 
 ### 1.2 新系统现状（wafer-inspect-wpf）
 
-依据仓库 `README.md` / `AGENTS.md` / `NavConfiguration.cs` / `MainViewModel.cs`（提交 `f4d1129`）：
+依据仓库 `README.md` / `AGENTS.md` / `NavConfiguration.cs` / `MainViewModel.cs`（0.3.0，提交 `d3ec131` 之后）：
 
 | 维度 | 现状 |
 |---|---|
-| 技术栈 | .NET 10，`net10.0-windows` WinExe / WPF；`WaferInspect.Core`(net10.0) + `WaferInspect.App`；xunit 测试 + Smoke 工具 + GitHub Actions CI |
+| 技术栈 | .NET 10，`net10.0-windows` WinExe / WPF；`WaferInspect.Core`(net10.0) + `WaferInspect.App`；`CommunityToolkit.Mvvm 8.4.2`（源生成器 MVVM）+ `Microsoft.Extensions.Hosting 10.0.12`（Generic Host / DI / `IHostedService`）；xunit 测试 + Smoke 工具 + GitHub Actions CI |
 | 导航 | 单一配置源 `NavConfiguration.cs`，4 组 / 12 项，组可独立折叠并有默认展开状态 |
 | 菜单 | 工作台（运行总览、实时监控）／检测业务（检测任务、晶圆地图、缺陷分析、结果报表）／设备与配置（设备管理、配方管理、标定与校验）／系统（告警中心、用户与权限、系统设置） |
 | 视图能力 | 5 类：`overview` 总览、`tasks` 任务表、`alarms` 告警、`live` 实时监控、其余 8 个菜单共用「通用数据表」占位视图 |
-| 数据 | 1 Hz 模拟数据（DispatcherTimer），未接入真实设备 / 数据库 / 文件系统 |
+| 数据 | 1 Hz 模拟数据（`DispatcherTimer` 泵 + `IHostedService`，确定性算法 `ISimulationData` 在 Core 层），未接入真实设备 / 数据库 / 文件系统 |
 | 权限 | 无登录、无角色、无权限判定；标题栏仅有 avatar 展示 |
 | 硬件 | 无任何设备抽象层（EFEM/ACS/相机/光源/IO/PLC/SECS-GEM 均未建模） |
 
@@ -1531,7 +1531,7 @@ Blade 系统用于**有图案晶圆的 2D 综合外观缺陷检测**，具备宏
 | `R-H01-09` | 状态机禁用/启用规则与提示；扫描中止期间才允许调用 `H04` 调参 | `BR-06/08/09/10` |
 | `R-H01-10` | 与 `H09` 统一事件源联动：高等级错误未处理时禁止开始运行 | `BR-74/75` |
 
-**数据/接口**：`IRunController`（状态机）、`ILoadPortService`（EFEM）、`IInspectionEventSource`；1 Hz 状态流复用现有 `DispatcherTimer` 基座但**不得复用 `TogglePause()` 语义**。
+**数据/接口**：`IRunController`（状态机）、`ILoadPortService`（EFEM）、`IInspectionEventSource`；1 Hz 状态流复用 `ILiveDataPump` / `SimulationHostedService` 基座（0.3.0 起由 Generic Host 托管），但**不得用原型的暂停/继续刷新逻辑替代历史运行配方的暂停、继续、停止、结批分支**（E-02 / E-07）。
 **权限**：开始/停止/上下料 OP；Clear/WDI 初始化/配方应用按矩阵；菜单与按钮双层判定。
 **验收**：`AC-H01-01` 9 栏同屏可见且随模拟数据流更新；`-02` 三模式切换与手动上料顺序可执行；`-03` 多选 2 个 Recipe 依次执行；`-04` 「继续运行」从头开始（不是断点续扫）；`-05` 结批扫完整批、停止立即中断；`-06` 高等级错误存在时开始运行被拦截；`-07` 全部 `BR-` 断言通过。
 **依赖**：`DEP-01`（H05 Map 组件）、`DEP-02`（H06 图像/设备命令）、`DEP-03`（H09 事件源）、`DEP-04`（H10 鉴权）、`DEP-05`（H02 配方列表）。
@@ -1765,7 +1765,7 @@ H08 数据分析 ──► 结果报表 / 导出
 | `MainViewModel` 单 ViewModel 现状 | 需按模块拆分 ViewModel，避免所有逻辑堆在一个类（`AGENTS.md` §4 渐进项） | P1 起 |
 | 「通用数据表」占位视图 | 8 个菜单共用，迁移时逐个替换为真实视图 | P1~P5 |
 | `Nullable` 现状 `disable` | 新模块建议启用可空并配套测试；Core 层已 `enable` | P0 起 |
-| 1 Hz `DispatcherTimer` 模拟数据 | 保留为演示数据源，但**不得**用它冒充真实设备/结果数据（E-07）；需引入可替换的数据源接口 | P0 |
+| 1 Hz 模拟数据 | 已抽出 `ILiveDataPump` / `ISimulationData`（`SimulationHostedService` 托管，0.3.0 起），仍为演示数据源，**不得**冒充真实设备/结果数据（E-07）；真实适配器按 `T-029` 落地 | P0 / P4 |
 | `WaferInspect.Smoke` + GitHub Actions | 每阶段门禁：build / test / smoke 全绿 | 全程 |
 | `Themes/Theme.xaml` | 新增视图复用现有语义色板与控件模板，不改窗口框架 | 全程 |
 

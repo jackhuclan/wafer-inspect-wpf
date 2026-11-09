@@ -5,43 +5,32 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using WaferInspect.Core.Navigation;
+using WaferInspect.Core.Simulation;
 using WaferInspectHMI.Models;
 using WaferInspectHMI.Navigation;
+using WaferInspectHMI.Services;
 
 namespace WaferInspectHMI.ViewModels;
 
-/// <summary>轻量 ICommand 实现，避免引入额外 MVVM 依赖。</summary>
-public sealed class RelayCommand : ICommand
+/// <summary>
+/// 主窗口状态编排。属性与命令的公开名称是 XAML 绑定契约，重构期间保持不变：
+/// 变更通知由 CommunityToolkit.Mvvm 源生成器产生，依赖由通用主机注入。
+/// </summary>
+public sealed partial class MainViewModel : ObservableBase, IDisposable
 {
-    private readonly Action<object> _execute;
-    private readonly Func<object, bool> _canExecute;
-
-    public RelayCommand(Action<object> execute, Func<object, bool> canExecute = null)
-    {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _canExecute = canExecute;
-    }
-
-    public event EventHandler CanExecuteChanged
-    {
-        add => CommandManager.RequerySuggested += value;
-        remove => CommandManager.RequerySuggested -= value;
-    }
-
-    public bool CanExecute(object parameter) => _canExecute?.Invoke(parameter) ?? true;
-    public void Execute(object parameter) => _execute(parameter);
-}
-
-public sealed class MainViewModel : Observable
-{
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly INavigationCatalog _catalog;
+    private readonly INavGroupFactory _navFactory;
+    private readonly ISimulationData _simulation;
+    private readonly ILiveDataPump _pump;
+    private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
     private readonly Random _rng = new(20261109);
     private int _tick;
-    private string _currentView = "overview";
-    private string _channel = "PL";
+    private bool _disposed;
 
     private static readonly Dictionary<string, string[]> ChannelColors = new()
     {
@@ -50,8 +39,19 @@ public sealed class MainViewModel : Observable
         ["AOI"] = new[] { "#ECEFFB", "#AEB9F0", "#F5A942", "#DC3F43" }
     };
 
-    public MainViewModel()
+    public MainViewModel(
+        INavigationCatalog catalog,
+        INavGroupFactory navFactory,
+        ISimulationData simulation,
+        ILiveDataPump pump,
+        ILogger<MainViewModel> logger)
     {
+        _catalog = catalog;
+        _navFactory = navFactory;
+        _simulation = simulation;
+        _pump = pump;
+        _logger = logger;
+
         BuildNav();
         BuildDevices();
         BuildDefects();
@@ -61,53 +61,67 @@ public sealed class MainViewModel : Observable
         BuildDies();
         BuildModuleTable("overview");
 
-        NavigateCommand = new RelayCommand(p => Navigate(p as string ?? NavConfiguration.DefaultViewKey));
-        ToggleGroupCommand = new RelayCommand(p => ToggleGroup(p as string));
-        AckCommand = new RelayCommand(p => Ack(p as string));
-        AckAllCommand = new RelayCommand(_ => AckAll(), _ => UnackedCount > 0);
-        NewTaskCommand = new RelayCommand(_ => AddTask());
-        PauseCommand = new RelayCommand(_ => TogglePause());
-        ChannelCommand = new RelayCommand(p => SetChannel(p as string ?? "PL"));
-        WindowCommand = new RelayCommand(p => WindowActionRequested?.Invoke(this, p as string ?? ""));
-        ExportCommand = new RelayCommand(_ => StatusMessage = "导出任务已创建，文件将保存至 D:\\Reports");
-
-        _timer.Tick += OnTick;
-        _timer.Start();
         ClockText = DateTime.Now.ToString("HH:mm:ss");
+        _pump.Tick += OnTick;
     }
 
     public event EventHandler<string> WindowActionRequested;
 
-    /* ---------------- 命令 ---------------- */
-    public ICommand NavigateCommand { get; }
-    public ICommand ToggleGroupCommand { get; }
-    public ICommand AckCommand { get; }
-    public ICommand AckAllCommand { get; }
-    public ICommand NewTaskCommand { get; }
-    public ICommand PauseCommand { get; }
-    public ICommand ChannelCommand { get; }
-    public ICommand WindowCommand { get; }
-    public ICommand ExportCommand { get; }
+    /* ---------------- 绑定契约：命令 ----------------
+     * 除 ChannelCommand / WindowCommand 因属性名冲突做别名外，
+     * 其余命令均由 [RelayCommand] 源生成器产生同名属性。 */
 
-    /* ---------------- 导航与视图状态 ---------------- */
+    /// <summary>通道切换命令（生成器方法名不能与 Channel 属性同名，故用别名）。</summary>
+    public ICommand ChannelCommand => SwitchChannelCommand;
+
+    /// <summary>标题栏三态按钮命令（同上，避免与方法 / 类型名冲突）。</summary>
+    public ICommand WindowCommand => WindowActionCommand;
+
+    /* ---------------- 绑定契约：可观察状态（源生成器） ---------------- */
+    [ObservableProperty] private string _currentView = "overview";
+    [ObservableProperty] private string _channel = "PL";
+    [ObservableProperty] private string _pageTitle = "运行总览";
+    [ObservableProperty] private string _pageCrumb = "工作台 / 运行总览";
+    [ObservableProperty] private string _pageSubtitle = "产线 A · FAB-03 · 设备与检测任务实时状态";
+    [ObservableProperty] private bool _isOverview = true;
+    [ObservableProperty] private bool _isTasks;
+    [ObservableProperty] private bool _isAlarms;
+    [ObservableProperty] private bool _isLive;
+    [ObservableProperty] private bool _isGeneric;
+    [ObservableProperty] private string _clockText;
+    [ObservableProperty] private string _statusMessage = "已连接 · PL-01 / SECS-GEM · 控制器 READY";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PauseLabel))]
+    [NotifyPropertyChangedFor(nameof(RefreshState))]
+    private bool _paused;
+
+    [ObservableProperty] private List<DieItem> _dies;
+    [ObservableProperty] private int _dieTotal;
+    [ObservableProperty] private int _dieNormal;
+    [ObservableProperty] private int _dieLight;
+    [ObservableProperty] private int _dieWarn;
+    [ObservableProperty] private int _dieBad;
+    [ObservableProperty] private string _dieYieldText;
+
+    [ObservableProperty] private PointCollection _yieldPoints;
+    [ObservableProperty] private PointCollection _areaPoints;
+    [ObservableProperty] private double _currentDotX;
+    [ObservableProperty] private double _currentDotY;
+    [ObservableProperty] private string _currentYieldText = "98.42%";
+
+    [ObservableProperty] private DataTable _moduleTable;
+
+    /* ---------------- 绑定契约：一次性构建的集合与计算属性 ---------------- */
     public List<NavGroup> NavGroups { get; private set; }
-    public string CurrentView => _currentView;
-    public string PageTitle { get; private set; } = "运行总览";
-    public string PageCrumb { get; private set; } = "工作台 / 运行总览";
-    public string PageSubtitle { get; private set; } = "产线 A · FAB-03 · 设备与检测任务实时状态";
-    public bool IsOverview { get; private set; } = true;
-    public bool IsTasks { get; private set; }
-    public bool IsAlarms { get; private set; }
-    public bool IsLive { get; private set; }
-    public bool IsGeneric { get; private set; }
+    public List<DeviceItem> Devices { get; private set; }
+    public List<DefectItem> Defects { get; private set; }
+    public List<TaskItem> Tasks { get; private set; }
+    public List<AlarmItem> Alarms { get; private set; }
 
-    /* ---------------- 顶栏与状态栏 ---------------- */
-    public string ClockText { get; private set; }
     public string OperatorName => "陈工";
     public string OperatorRole => "工艺工程师";
     public string AppVersion => "v3.8.2";
-    public string StatusMessage { get; private set; } = "已连接 · PL-01 / SECS-GEM · 控制器 READY";
-    public bool Paused { get; private set; }
     public string PauseLabel => Paused ? "继续刷新" : "暂停刷新";
     public string RefreshState => Paused ? "已暂停" : "实时刷新中";
 
@@ -117,54 +131,13 @@ public sealed class MainViewModel : Observable
     public string ShiftYield => "98.42%";
     public string DefectTotal => "1,248 颗";
 
-    /* ---------------- 晶圆图 ---------------- */
-    public List<DieItem> Dies { get; private set; }
-    public string Channel => _channel;
-    public int DieTotal { get; private set; }
-    public int DieNormal { get; private set; }
-    public int DieLight { get; private set; }
-    public int DieWarn { get; private set; }
-    public int DieBad { get; private set; }
-    public string DieYieldText { get; private set; }
-
-    /* ---------------- 实时曲线 ---------------- */
-    public PointCollection YieldPoints { get; private set; }
-    public PointCollection AreaPoints { get; private set; }
-    public double CurrentDotX { get; private set; }
-    public double CurrentDotY { get; private set; }
-    public string CurrentYieldText { get; private set; } = "98.42%";
-
-    /* ---------------- 列表数据 ---------------- */
-    public List<DeviceItem> Devices { get; private set; }
-    public List<DefectItem> Defects { get; private set; }
-    public List<TaskItem> Tasks { get; private set; }
-    public List<AlarmItem> Alarms { get; private set; }
-    public DataTable ModuleTable { get; private set; }
     public int UnackedCount => Alarms.Count(a => !a.Acked);
     public string AlarmBadgeText => $"{UnackedCount} 条待处理";
 
     /* ---------------- 构建数据 ---------------- */
-    private static Geometry G(string path) => Geometry.Parse(path);
-
-    private void BuildNav()
-    {
-        NavGroups = NavGroupFactory.Create(NavConfiguration.DefaultViewKey);
-    }
-
-    /// <summary>切换单个分组的展开状态；选中项与当前视图保持不变。</summary>
-    private void ToggleGroup(string key)
-    {
-        var group = NavGroups.FirstOrDefault(g => g.Key == key);
-        if (group == null) return;
-
-        group.IsExpanded = !group.IsExpanded;
-        StatusMessage = group.IsExpanded
-            ? $"已展开导航分组：{group.Title}"
-            : $"已收起导航分组：{group.Title}（选中项保持不变）";
-        Raise(nameof(StatusMessage));
-    }
-
     private static SolidColorBrush B(string hex) => (SolidColorBrush)new BrushConverter().ConvertFrom(hex);
+
+    private void BuildNav() => NavGroups = _navFactory.Create(_catalog.DefaultViewKey);
 
     private void BuildDevices()
     {
@@ -244,32 +217,17 @@ public sealed class MainViewModel : Observable
             SeverityBrush = B(fg), SeverityBack = B(bg), Acked = acked
         };
 
-    private static double Rand(double n)
-    {
-        double x = Math.Sin(n * 127.1 + 0.73) * 43758.5453;
-        return x - Math.Floor(x);
-    }
-
     private void BuildYield()
     {
-        for (int i = 0; i < 61; i++)
-        {
-            double v = 98.28 + Math.Sin(i / 6.5) * 0.20 + Math.Sin(i / 2.3) * 0.07 + (Rand(i * 3 + 1) - .5) * 0.09;
-            _yield.Add(Math.Clamp(v, 97.5, 99.5));
-        }
-        _yield[18] = 97.31;
-        _yield[19] = 97.86;
-        _yield[60] = 98.42;
+        _yield.AddRange(_simulation.CreateYieldSeries());
         RebuildChart();
     }
-
-    private static double ChartY(double v) => 118 - (v - 96.5) / 3.5 * 104;
 
     private void RebuildChart()
     {
         var pts = new PointCollection();
         for (int i = 0; i < _yield.Count; i++)
-            pts.Add(new Point(i * 560.0 / (_yield.Count - 1), ChartY(_yield[i])));
+            pts.Add(new Point(i * 560.0 / (_yield.Count - 1), _simulation.ChartY(_yield[i])));
         YieldPoints = pts;
 
         var area = new PointCollection();
@@ -279,16 +237,14 @@ public sealed class MainViewModel : Observable
         AreaPoints = area;
 
         CurrentDotX = 560;
-        CurrentDotY = ChartY(_yield[^1]);
+        CurrentDotY = _simulation.ChartY(_yield[^1]);
         CurrentYieldText = $"{_yield[^1]:F2}%";
-        Raise(nameof(YieldPoints)); Raise(nameof(AreaPoints));
-        Raise(nameof(CurrentDotX)); Raise(nameof(CurrentDotY)); Raise(nameof(CurrentYieldText));
     }
 
     private void BuildDies()
     {
-        int ci = _channel switch { "PL" => 0, "EL" => 1, _ => 2 };
-        var colors = ChannelColors[_channel].Select(B).ToArray();
+        int ci = Channel switch { "PL" => 0, "EL" => 1, _ => 2 };
+        var colors = ChannelColors[Channel].Select(B).ToArray();
         const int N = 21;
         const double pitch = 10.9, size = 9.2, cx = 120, cy = 120, R = 113;
         var list = new List<DieItem>();
@@ -301,19 +257,19 @@ public sealed class MainViewModel : Observable
             double y = cy + (r - (N - 1) / 2.0) * pitch;
             double dist = Math.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
             if (dist > R - 4) continue;
-            double seed = Rand((r * 31 + c * 7) * 13 + ci * 97);
+            double seed = _simulation.Noise((r * 31 + c * 7) * 13 + ci * 97);
             double edge = dist / R;
             int lv = seed < 0.80 - 0.16 * edge ? 0 : seed < 0.925 - 0.09 * edge ? 1
                    : seed < 0.982 - 0.035 * edge ? 2 : 3;
             double cluster = Math.Sqrt((x - (cx + 40)) * (x - (cx + 40)) + (y - (cy - 32)) * (y - (cy - 32)));
-            if (cluster < 23 && Rand((int)(seed * 997) + ci * 13) > 0.34)
-                lv = Rand(seed * 311) > 0.46 ? 3 : 2;
+            if (cluster < 23 && _simulation.Noise((int)(seed * 997) + ci * 13) > 0.34)
+                lv = _simulation.Noise(seed * 311) > 0.46 ? 3 : 2;
 
             counts[lv]++;
             list.Add(new DieItem
             {
                 X = x - size / 2, Y = y - size / 2, Level = lv, Fill = colors[lv],
-                Tip = $"R{r + 1:00} · C{c + 1:00}   {new[] { "正常", "轻微", "警告", "缺陷" }[lv]}   通道 {_channel}"
+                Tip = $"R{r + 1:00} · C{c + 1:00}   {new[] { "正常", "轻微", "警告", "缺陷" }[lv]}   通道 {Channel}"
             });
         }
 
@@ -321,8 +277,6 @@ public sealed class MainViewModel : Observable
         DieTotal = counts.Sum(); DieNormal = counts[0]; DieLight = counts[1];
         DieWarn = counts[2]; DieBad = counts[3];
         DieYieldText = $"{((1 - counts[3] / (double)DieTotal) * 100):F2}%";
-        Raise(nameof(Dies)); Raise(nameof(DieTotal)); Raise(nameof(DieNormal));
-        Raise(nameof(DieLight)); Raise(nameof(DieWarn)); Raise(nameof(DieBad)); Raise(nameof(DieYieldText));
     }
 
     private void BuildModuleTable(string view)
@@ -335,7 +289,7 @@ public sealed class MainViewModel : Observable
             case "wafer":
                 Cols("晶粒坐标", "检测通道", "缺陷等级", "缺陷颗数", "判定");
                 foreach (var d in Dies.Where(d => d.Level >= 2).Take(18))
-                    t.Rows.Add(d.Tip.Split("   ")[0], _channel, d.Level == 3 ? "缺陷" : "警告", d.Level * 3 + 2, d.Level == 3 ? "需复检" : "观察");
+                    t.Rows.Add(d.Tip.Split("   ")[0], Channel, d.Level == 3 ? "缺陷" : "警告", d.Level * 3 + 2, d.Level == 3 ? "需复检" : "观察");
                 break;
             case "defects":
                 Cols("缺陷编号", "晶圆 / 坐标", "分类", "尺寸", "置信度", "判定");
@@ -384,17 +338,17 @@ public sealed class MainViewModel : Observable
                 break;
         }
         ModuleTable = t;
-        Raise(nameof(ModuleTable));
     }
 
-    /* ---------------- 行为 ---------------- */
+    /* ---------------- 行为：命令由 [RelayCommand] 生成 ---------------- */
+    [RelayCommand]
     private void Navigate(string key)
     {
-        _currentView = key;
+        CurrentView = key;
         foreach (var item in NavGroups.SelectMany(g => g.Items)) item.IsSelected = item.Key == key;
 
         // 折叠不影响选中态：目标视图若位于已收起的分组，导航时自动展开，保证选中项可见。
-        var targetKey = NavConfiguration.GroupKeyOf(key);
+        var targetKey = _catalog.GroupKeyOf(key);
         if (targetKey != null)
         {
             var targetGroup = NavGroups.FirstOrDefault(g => g.Key == targetKey);
@@ -425,13 +379,24 @@ public sealed class MainViewModel : Observable
         IsGeneric = !(IsOverview || IsTasks || IsAlarms || IsLive);
         if (IsGeneric) BuildModuleTable(key);
 
-        foreach (var n in new[] { nameof(CurrentView), nameof(PageTitle), nameof(PageCrumb), nameof(PageSubtitle),
-                                 nameof(IsOverview), nameof(IsTasks), nameof(IsAlarms), nameof(IsLive), nameof(IsGeneric) })
-            Raise(n);
         StatusMessage = $"当前视图：{PageCrumb}";
-        Raise(nameof(StatusMessage));
+        _logger.LogInformation("导航切换：{ViewKey}（{PageTitle}）", key, PageTitle);
     }
 
+    /// <summary>切换单个分组的展开状态；选中项与当前视图保持不变。</summary>
+    [RelayCommand]
+    private void ToggleGroup(string key)
+    {
+        var group = NavGroups.FirstOrDefault(g => g.Key == key);
+        if (group == null) return;
+
+        group.IsExpanded = !group.IsExpanded;
+        StatusMessage = group.IsExpanded
+            ? $"已展开导航分组：{group.Title}"
+            : $"已收起导航分组：{group.Title}（选中项保持不变）";
+    }
+
+    [RelayCommand]
     private void Ack(string id)
     {
         var a = Alarms.FirstOrDefault(x => x.Id == id);
@@ -439,73 +404,82 @@ public sealed class MainViewModel : Observable
         a.Acked = true;
         RefreshAlarmState();
         StatusMessage = $"告警 {id} 已确认，剩余 {UnackedCount} 条待处理";
-        Raise(nameof(StatusMessage));
     }
 
+    private bool CanAckAll => UnackedCount > 0;
+
+    [RelayCommand(CanExecute = nameof(CanAckAll))]
     private void AckAll()
     {
         foreach (var a in Alarms.Where(x => !x.Acked)) a.Acked = true;
         RefreshAlarmState();
         StatusMessage = "已确认全部告警，当前无待处理告警";
-        Raise(nameof(StatusMessage));
     }
 
     private void RefreshAlarmState()
     {
         Raise(nameof(UnackedCount)); Raise(nameof(AlarmBadgeText));
+        AckAllCommand.NotifyCanExecuteChanged();
         var badge = NavGroups.SelectMany(g => g.Items).FirstOrDefault(n => n.Key == "alarms");
-        if (badge != null) { badge.Badge = UnackedCount.ToString(); badge.Raise(nameof(NavItem.Badge)); badge.Raise(nameof(NavItem.BadgeVisibility)); }
+        if (badge != null) badge.Badge = UnackedCount.ToString();
     }
 
-    private void AddTask()
+    [RelayCommand]
+    private void NewTask()
     {
         string id = $"TSK-261109-{196 + Tasks.Count:0000}";
         Tasks.Insert(0, Row(id, "LOT-261109-A09", $"WFR-20261109-{48 + Tasks.Count:000}", "PL-STD-300mm-R3", "—", 0, DateTime.Now.ToString("HH:mm:ss"), "排队中", false));
         Raise(nameof(Tasks));
         StatusMessage = $"检测任务 {id} 已创建并进入排队队列";
-        Raise(nameof(StatusMessage));
     }
 
-    private void TogglePause()
+    [RelayCommand]
+    private void Pause()
     {
         Paused = !Paused;
-        Raise(nameof(Paused)); Raise(nameof(PauseLabel)); Raise(nameof(RefreshState));
         StatusMessage = Paused ? "实时数据刷新已暂停" : "实时数据刷新已恢复";
-        Raise(nameof(StatusMessage));
     }
 
-    public void ShowNotification(string message)
-    {
-        StatusMessage = message;
-        Raise(nameof(StatusMessage));
-    }
-
-    private void SetChannel(string ch)
+    [RelayCommand]
+    private void SwitchChannel(string ch)
     {
         if (!ChannelColors.ContainsKey(ch)) return;
-        _channel = ch;
+        Channel = ch;
         BuildDies();
-        if (_currentView == "wafer") BuildModuleTable("wafer");
-        Raise(nameof(Channel));
+        if (CurrentView == "wafer") BuildModuleTable("wafer");
         StatusMessage = $"已切换至 {ch} 通道图谱";
-        Raise(nameof(StatusMessage));
     }
+
+    [RelayCommand]
+    private void WindowAction(string action)
+        => WindowActionRequested?.Invoke(this, action ?? string.Empty);
+
+    [RelayCommand]
+    private void Export()
+        => StatusMessage = "导出任务已创建，文件将保存至 D:\\Reports";
+
+    public void ShowNotification(string message) => StatusMessage = message;
 
     private void OnTick(object sender, EventArgs e)
     {
         _tick++;
         ClockText = DateTime.Now.ToString("HH:mm:ss");
-        Raise(nameof(ClockText));
         if (Paused) return;
 
         double last = _yield[^1];
-        double next = Math.Clamp(last + (_rng.NextDouble() - .5) * 0.17 + (98.42 - last) * 0.07, 97.55, 99.55);
-        if (_rng.NextDouble() < 0.012) next -= 0.75;
+        double next = _simulation.NextYield(last, _rng);
         _yield.Add(next); _yield.RemoveAt(0);
         RebuildChart();
 
         if (_tick % 2 == 0)
             foreach (var t in Tasks.Where(t => t.IsRunning && t.Progress < 100))
                 t.Progress = Math.Min(100, t.Progress + _rng.NextDouble() * 0.8);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _pump.Tick -= OnTick;
     }
 }

@@ -13,4 +13,9 @@
     <ProjectReference Include="../WaferInspect.Core/WaferInspect.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup Label="MVVM 与通用主机">
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
 </Project>
