@@ -56,6 +56,9 @@ public static class CoreServiceCollectionExtensions
         // P3（H08）：数据分析的结果仓库与复判执行（B-16 / B-23），AI 复判明确搁置（T-035）。
         services.AddSingleton<IWaferResultStore, WaferResultStore>();
         services.AddSingleton<IRecheckService, RecheckService>();
+        // P3（H08，R-H08-06）：统一结果导出服务（B-13 / B-14）。
+        // 报表类生成自洽内部 CSV；Sinf / Klarf 因 T-037 未确认显式返回失败，不伪造工业格式。
+        services.AddSingleton<IResultExportService, ResultExportService>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
         services.AddSingleton<IAccountStore, InMemoryAccountStore>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();

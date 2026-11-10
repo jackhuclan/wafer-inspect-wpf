@@ -46,3 +46,28 @@ public sealed class H08BinOption
     public string Shortcut { get; }
     public string Display => $"{Code} · {Name}（快捷键 {Shortcut}）";
 }
+
+/// <summary>结果导出目标项（R-H08-06 / B-13 / B-14）：供 UI 下拉枚举，T-037 未确认目标显式标注。</summary>
+public sealed class ExportTargetItem
+{
+    public ExportTargetItem(ResultExportTarget target, IResultExportService service)
+    {
+        Target = target;
+        IsFormatSpecified = service.IsFormatSpecified(target);
+    }
+
+    public ResultExportTarget Target { get; }
+    public bool IsFormatSpecified { get; }
+
+    public string Display => Target switch
+    {
+        ResultExportTarget.DefectDetailReport => "缺陷详情报表 (CSV)",
+        ResultExportTarget.GlobalMeasurementReport => "全局量测报表 (CSV)",
+        ResultExportTarget.Measurement2DReport => "2D 量测报表 (CSV)",
+        ResultExportTarget.Klarf => "Klarf [T-037 待确认]",
+        ResultExportTarget.Sinf => "Sinf [T-037 待确认]",
+        ResultExportTarget.CopyRelativePath => "复制相对路径",
+        ResultExportTarget.CopyWaferId => "复制 WaferId",
+        _ => Target.ToString()
+    };
+}

@@ -102,6 +102,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- 良率面板（F-3.9.2-07/08/09） -->
@@ -189,6 +190,33 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
+            </Border>
+
+            <!-- 结果输出（B-13 / B-14 / R-H08-06）：统一导出入口 + 复制动作 -->
+            <Border Style="{StaticResource Card}" Grid.Row="3" Padding="12">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,6">
+                        <TextBlock Text="结果输出" Style="{StaticResource PanelTitle}"/>
+                        <TextBlock Text="B-13 / B-14 / R-H08-06" Style="{StaticResource PanelSub}" Margin="8,0,0,0"/>
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <ComboBox Width="216" Margin="0,0,6,0" AutomationProperties.AutomationId="CmbExportTarget"
+                                  ItemsSource="{Binding ExportTargets}" DisplayMemberPath="Display"
+                                  SelectedItem="{Binding SelectedExportTarget}"/>
+                        <Button Content="导出 / 生成" Style="{StaticResource GhostButton}" Height="28"
+                                AutomationProperties.AutomationId="BtnExportResult" Command="{Binding ExportResultCommand}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button Content="复制 WaferId" Style="{StaticResource GhostButton}" Height="28" Margin="0,0,6,0"
+                                AutomationProperties.AutomationId="BtnCopyWaferId" Command="{Binding CopyWaferIdCommand}"/>
+                        <Button Content="复制相对路径" Style="{StaticResource GhostButton}" Height="28"
+                                AutomationProperties.AutomationId="BtnCopyRelPath" Command="{Binding CopyRelativePathCommand}"/>
+                    </StackPanel>
+                    <TextBlock FontSize="11" Foreground="{StaticResource Text2}" TextWrapping="Wrap"
+                               AutomationProperties.AutomationId="TxtExportMessage">
+                        <Run Text="{Binding ExportMessage, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

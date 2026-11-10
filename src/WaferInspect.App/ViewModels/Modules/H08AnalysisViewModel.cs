@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
+using Microsoft.Win32;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WaferInspect.Core.Analysis;
@@ -21,23 +22,30 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
     private readonly IMapTypeCatalog _catalog;
     private readonly IWaferResultStore _store;
     private readonly IRecheckService _recheck;
+    private readonly IResultExportService _export;
     private readonly MapGridModel _map = new();
     private string _selectedWaferId = string.Empty;
 
     public H08AnalysisViewModel(
         IMapTypeCatalog catalog,
         IWaferResultStore store,
-        IRecheckService recheck)
-        : base("H08", "数据分析与人工复判", "P3（增量 6：主页面 + 复判全景 Map + 复判执行）")
+        IRecheckService recheck,
+        IResultExportService export)
+        : base("H08", "数据分析与人工复判", "P3（增量 6：主页面 + 复判全景 Map + 复判执行；增量 7：结果输出 R-H08-06）")
     {
         _catalog = catalog;
         _store = store;
         _recheck = recheck;
+        _export = export;
 
         _catalog.Changed += (_, _) => RefreshAvailableBins();
         _store.Changed += (_, _) => RefreshWafers();
         _recheck.Changed += (_, _) => OnRecheckChanged();
         _map.Changed += (_, _) => RefreshMapText();
+
+        foreach (var t in _export.Targets)
+            ExportTargets.Add(new ExportTargetItem(t, _export));
+        SelectedExportTarget = ExportTargets.FirstOrDefault();
 
         RefreshWafers();
     }
@@ -48,6 +56,12 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
     public ObservableCollection<DefectResultRow> Defects { get; } = new();
     public ObservableCollection<H08BinOption> AvailableBins { get; } = new();
     public ObservableCollection<string> ReviewStateOptions { get; } = new() { "全部", "未复判", "已复判" };
+
+    // 结果输出（B-13 / B-14 / R-H08-06）
+    public ObservableCollection<ExportTargetItem> ExportTargets { get; } = new();
+    [ObservableProperty] private ExportTargetItem _selectedExportTarget;
+    [ObservableProperty] private string _exportMessage = "尚未导出";
+    [ObservableProperty] private bool _isExporting;
 
     [ObservableProperty] private WaferRow _selectedWafer;
     [ObservableProperty] private H08BinOption _recheckBin;
@@ -69,10 +83,11 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
     [ObservableProperty] private string _detailText = "未选中 Die：GoldenDie（只读 B-09）/ 回溯图 / 复判图 占位，设备采集未接入（T-029）";
     [ObservableProperty] private string _yieldSummaryText = "复判前 — · 复判后 — · AI 复判后 —";
 
-    /// <summary>明确登记未迁移项，禁止伪造入口（与 P2 状态文档一致）。</summary>
+    /// <summary>明确登记已交付与未迁移项，禁止伪造入口（与 P3 状态文档一致）。</summary>
     public string DeferredNote =>
-        "[未迁移] 结果报表 / Klarf / Sinf 导出（B-13/B-14、R-H05-06）属增量 7；AI 复判（T-035）模型未部署，本页只交付 P3 增量 6。" +
-        "所有结果为确定性合成（设备采集 / AI 推理未接入 T-029 / T-035），已标注 [模拟结果]，不伪造设备成功。";
+        "[已交付] 结果输出（B-13/B-14、R-H08-06）：缺陷详情 / 全局量测 / 2D 量测 报表已生成自洽内部 CSV；复制 WaferId / 相对路径已真实可用；" +
+        "Sinf / Klarf 因 PRD T-037 文件格式规范未确认，显式返回 [T-037 待确认] 失败提示，不伪造工业格式。" +
+        "AI 复判（T-035）模型未部署，仍标 [搁置]。所有结果为确定性合成（T-029 / T-035 未接入），已标注 [模拟结果]，不伪造设备成功。";
 
     /// <summary>H08 唯一复判全景 Map 模型（B-06），由共享 <c>MapGridView</c> 直接绑定。</summary>
     public MapGridModel Map => _map;
@@ -267,6 +282,79 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
         var (_, message, executed) = _recheck.AiRecheck(w.WaferId);
         // T-035：AI 模型未部署，不伪造结果；界面明确标注 [搁置]。
         RecheckMessage = executed ? "AI 复判已完成" : message;
+    }
+
+    /* ---------------- 结果输出（B-13 / B-14 / R-H08-06） ---------------- */
+
+    [RelayCommand]
+    private void ExportResult()
+    {
+        var wafer = SelectedWafer?.Source;
+        if (wafer == null) { ExportMessage = "请先选择 Wafer"; return; }
+        if (SelectedExportTarget == null) { ExportMessage = "请先选择导出目标"; return; }
+
+        var target = SelectedExportTarget.Target;
+        IsExporting = true;
+        try
+        {
+            var result = _export.Export(wafer, target);
+            if (!result.IsFileTarget)
+            {
+                TryClipboard(result.Content ?? string.Empty);
+                ExportMessage = $"{result.Message}：{result.Content}";
+                return;
+            }
+            if (!result.Success)
+            {
+                ExportMessage = result.Message;   // T-037 占位：Sinf / Klarf 明确失败提示，不出文件
+                return;
+            }
+            var dlg = new SaveFileDialog
+            {
+                FileName = result.SuggestedFileName,
+                Filter = "CSV 文件 (*.csv)|*.csv|全部文件 (*.*)|*.*",
+                Title = "导出结果文件"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                System.IO.File.WriteAllText(dlg.FileName, result.Content ?? string.Empty, System.Text.Encoding.UTF8);
+                ExportMessage = $"已导出：{dlg.FileName}";
+            }
+            else
+            {
+                ExportMessage = "已取消导出";
+            }
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CopyWaferId()
+    {
+        var wafer = SelectedWafer?.Source;
+        if (wafer == null) { ExportMessage = "请先选择 Wafer"; return; }
+        var r = _export.Export(wafer, ResultExportTarget.CopyWaferId);
+        TryClipboard(r.Content ?? string.Empty);
+        ExportMessage = $"{r.Message}：{r.Content}";
+    }
+
+    [RelayCommand]
+    private void CopyRelativePath()
+    {
+        var wafer = SelectedWafer?.Source;
+        if (wafer == null) { ExportMessage = "请先选择 Wafer"; return; }
+        var r = _export.Export(wafer, ResultExportTarget.CopyRelativePath);
+        TryClipboard(r.Content ?? string.Empty);
+        ExportMessage = $"{r.Message}：{r.Content}";
+    }
+
+    private void TryClipboard(string content)
+    {
+        try { Clipboard.SetText(content); }
+        catch { /* 剪贴板不可用时降级为仅提示，不抛异常 */ }
     }
 
     private void RefreshDetail()

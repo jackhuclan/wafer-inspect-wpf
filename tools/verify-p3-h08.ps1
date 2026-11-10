@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    P3 增量 6（H08 数据分析与人工复判，1.2.0）门禁脚本。
+    P3 门禁脚本（H08 数据分析与人工复判：增量 6 主页面 + 增量 7 结果输出，1.3.0）。
 .DESCRIPTION
     自动执行构建 + 单元测试 + ui-error.log 空校验，收口打印 ALL DONE。
-    对应 docs/P3-Migration-Status.md 的验证证据。
+    覆盖 docs/P3-Migration-Status.md 的验证证据（含 ResultExportServiceTests 的 T-037 诚实占位断言）。
 .PARAMETER Configuration
     构建/测试配置，默认 Release。
 .PARAMETER Uia
