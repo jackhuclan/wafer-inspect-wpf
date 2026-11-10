@@ -9,6 +9,8 @@
     <File Path=".gitignore" />
     <File Path="docs\PRD-Blade-Migration.md" />
     <File Path="docs\P0-Migration-Status.md" />
+    <File Path="docs\P1-Migration-Status.md" />
+    <File Path="docs\P2-Migration-Status.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/WaferInspect.Core/WaferInspect.Core.csproj" />

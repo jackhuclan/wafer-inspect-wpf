@@ -3,6 +3,7 @@ using WaferInspect.Core.Alignment;
 using WaferInspect.Core.Data;
 using WaferInspect.Core.Devices;
 using WaferInspect.Core.Events;
+using WaferInspect.Core.Inspection;
 using WaferInspect.Core.Maps;
 using WaferInspect.Core.Navigation;
 using WaferInspect.Core.Recipes;
@@ -45,6 +46,9 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<LightCalibrationAnalyzer>();
         services.AddSingleton<MarkAlignmentService>();
         services.AddSingleton<ReferenceImagePlanner>();
+        // P2（H04，B-01/B-02/AC-P2-03）：ROI 与扫描区域的唯一数据源。
+        // 向导步骤 5/6、缺陷分析的参数验证页、H01 中止调参必须复用同一单例，不得各自维护副本。
+        services.AddSingleton<IRoiScanAreaStore, RoiScanAreaStore>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
         services.AddSingleton<IAccountStore, InMemoryAccountStore>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();

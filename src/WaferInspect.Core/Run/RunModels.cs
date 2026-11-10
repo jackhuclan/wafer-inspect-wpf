@@ -93,7 +93,14 @@ public sealed record BatchStats(int NormalDies, int DefectDies, int FailedDies)
     public int TotalDies => NormalDies + DefectDies + FailedDies;
 }
 
-/// <summary>缺陷记录 7 列（F-3.1.8-01~07）；单位 μm/像素按原样（BR-12，T-015 登记）。与 H08 共用模型（B-23）。</summary>
+/// <summary>
+/// 缺陷记录（F-3.1.8-01~07 的 7 列 + H08 复判所需扩展列）。
+/// 单位 μm/像素按原样（BR-12，T-015 登记）。
+/// **B-23 / R-H04-05：全系统唯一结构**——H01 实时缺陷流、H04 参数验证与预扫描结果、
+/// H08 历史缺陷列表都消费本记录，字段模型由 H04 定义，不得各自另建一套。
+/// 后 5 个可选字段为 H04 增量补齐（AI 分类 / AI Bin / 复判状态 / 备注 / 原始图片路径 F-3.8.1-09），
+/// 使用默认值以保证 H01 既有构造与行为完全不变。
+/// </summary>
 public sealed record DefectRecord(
     string Zone,
     string Category,
@@ -101,7 +108,12 @@ public sealed record DefectRecord(
     int Column,
     double Length,
     double Width,
-    double Area);
+    double Area,
+    string AiClassification = "",
+    string AiBin = "",
+    string ReviewState = "未复判",
+    string Note = "",
+    string SourceImagePath = "");
 
 /// <summary>待检测 Job 信息（F-3.1.5-07 四项）；真实 Job CRUD 属 P2，本阶段为模拟清单。</summary>
 public sealed record JobSelection(

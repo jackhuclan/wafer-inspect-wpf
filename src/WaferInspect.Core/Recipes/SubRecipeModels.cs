@@ -1,4 +1,5 @@
 using WaferInspect.Core.Alignment;
+using WaferInspect.Core.Inspection;
 
 namespace WaferInspect.Core.Recipes;
 
@@ -277,7 +278,10 @@ public sealed class MarkSettingsConfig
     public MarkSettingsConfig Clone() => (MarkSettingsConfig)MemberwiseClone();
 }
 
-/// <summary>「ROI」步骤的区域定义（AC-P2-03：ROI 与扫描区域在向导与参数验证中是同一份数据，H04 唯一数据源）。</summary>
+/// <summary>
+/// 「ROI」步骤的区域定义（AC-P2-03：ROI 与扫描区域在向导与参数验证中是同一份数据，H04 唯一数据源）。
+/// 运行时权威数据是 <see cref="IRoiScanAreaStore"/>；本记录只是随 Recipe 持久化的投影。
+/// </summary>
 public sealed record RoiZone(int Index, string Name, double X, double Y, double Width, double Height);
 
 /// <summary>「扫描区域」步骤配置（AC-P2-03：与 ROI 共用 H04 单一数据源，本步骤保存区域引用）。</summary>
@@ -345,6 +349,12 @@ public sealed class SubRecipe
     /// <summary>步骤 6 扫描区域（AC-P2-03）。</summary>
     public ScanAreaConfig ScanArea { get; set; } = new();
 
+    /// <summary>
+    /// H04 检测配置快照（R-H04-01「写入 Recipe」）：检测设置列表、扫描区域、抽检 Die、
+    /// 可扩展算法参数集合与 BR-40 自动保存版本。运行时权威数据在 <see cref="IRoiScanAreaStore"/>。
+    /// </summary>
+    public InspectionConfig Inspection { get; set; } = new();
+
     /// <summary>步骤 7 复判设置（R-H02-07）。</summary>
     public RecheckConfig Recheck { get; set; } = new();
 
@@ -352,21 +362,27 @@ public sealed class SubRecipe
     public IReadOnlyList<WizardStepState> Steps { get; set; }
         = Enum.GetValues<WizardStepKey>().Select(k => new WizardStepState { Key = k }).ToList();
 
-    public SubRecipe Clone() => new()
+    public SubRecipe Clone()
     {
-        Id = Id,
-        ParentJobId = ParentJobId,
-        Name = Name,
-        BasicInfo = BasicInfo.Clone(),
-        Leveling = Leveling.Clone(),
-        Marks = Marks.ToList(),
-        MarkSettings = MarkSettings.Clone(),
-        ReferenceImage = ReferenceImage.Clone(),
-        RoiZones = RoiZones.ToList(),
-        ScanArea = ScanArea.Clone(),
-        Recheck = Recheck.Clone(),
-        Steps = Steps.Select(s => new WizardStepState { Key = s.Key, Status = s.Status, FailureReason = s.FailureReason }).ToList()
-    };
+        // 局部变量避免属性名 Inspection 与 WaferInspect.Core.Inspection 命名空间在初始化器中产生歧义。
+        var inspection = Inspection.Clone();
+        return new()
+        {
+            Id = Id,
+            ParentJobId = ParentJobId,
+            Name = Name,
+            BasicInfo = BasicInfo.Clone(),
+            Leveling = Leveling.Clone(),
+            Marks = Marks.ToList(),
+            MarkSettings = MarkSettings.Clone(),
+            ReferenceImage = ReferenceImage.Clone(),
+            RoiZones = RoiZones.ToList(),
+            ScanArea = ScanArea.Clone(),
+            Inspection = inspection,
+            Recheck = Recheck.Clone(),
+            Steps = Steps.Select(s => new WizardStepState { Key = s.Key, Status = s.Status, FailureReason = s.FailureReason }).ToList()
+        };
+    }
 }
 
 /// <summary>基础信息校验问题（与 Job 校验同构，便于界面统一呈现）。</summary>

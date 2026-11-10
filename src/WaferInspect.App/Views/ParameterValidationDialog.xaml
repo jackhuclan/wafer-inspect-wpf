@@ -1,0 +1,261 @@
+<Window x:Class="WaferInspectHMI.Views.ParameterValidationDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:WaferInspectHMI.ViewModels.Modules"
+        xmlns:views="clr-namespace:WaferInspectHMI.Views"
+        Title="算法参数调试 · 参数验证（关闭自动保存）" Width="1280" Height="840"
+        MinWidth="1080" MinHeight="680"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{StaticResource Surface}" FontFamily="Microsoft YaHei UI" FontSize="13"
+        Closing="Window_Closing">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+        </Style>
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+        <Style x:Key="FieldCombo" TargetType="ComboBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+        <Style x:Key="KeyText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 页头 -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,12">
+            <StackPanel>
+                <TextBlock Text="{Binding HeaderText}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource Text}"
+                           AutomationProperties.AutomationId="ValidationHeaderText"/>
+                <TextBlock Text="{Binding SyncText}" Style="{StaticResource MetaText}" Margin="0,4,0,0"
+                           AutomationProperties.AutomationId="ValidationSyncText"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="14,12,14,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="424"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="340"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左：Map 扫描区域（F-3.8.1-03/04、BR-37~39） -->
+            <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,12,0" Padding="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Text="参数验证 · Map 扫描区域" Style="{StaticResource PanelTitle}" Margin="0,0,0,8"/>
+                        <views:MapRegionCanvas HorizontalAlignment="Left" State="{Binding Map}"
+                                               AutomationProperties.AutomationId="ValidationMapCanvas"/>
+                        <WrapPanel Margin="0,10,0,0">
+                            <CheckBox IsChecked="{Binding ScanFullWafer}" Content="全片扫描（BR-37）" Margin="0,0,12,0"
+                                      VerticalAlignment="Center" AutomationProperties.AutomationId="ChkValFullWafer"/>
+                            <CheckBox IsChecked="{Binding SamplingEnabled}" Content="抽检（双击 Die，BR-38）"
+                                      VerticalAlignment="Center" AutomationProperties.AutomationId="ChkValSampling"/>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,10,0,0">
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="起始列" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Width="56" Text="{Binding RegionX}"
+                                         AutomationProperties.AutomationId="FieldValX"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="起始行" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Width="56" Text="{Binding RegionY}"
+                                         AutomationProperties.AutomationId="FieldValY"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="列数" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Width="56" Text="{Binding RegionW}"
+                                         AutomationProperties.AutomationId="FieldValW"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="行数" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Width="56" Text="{Binding RegionH}"
+                                         AutomationProperties.AutomationId="FieldValH"/>
+                            </StackPanel>
+                            <Button Content="添加" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom"
+                                    Command="{Binding AddRegionFromFieldsCommand}"
+                                    AutomationProperties.AutomationId="BtnValAddRegion"/>
+                            <Button Content="清除" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Margin="6,0,0,0"
+                                    Command="{Binding ClearRegionsCommand}"
+                                    AutomationProperties.AutomationId="BtnValClearRegions"/>
+                        </WrapPanel>
+                        <TextBlock Text="已定义区域（与配方向导步骤 5/6 同一份数据，AC-P2-03）"
+                                   Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                        <ItemsControl ItemsSource="{Binding Map.Regions}" MaxHeight="90"
+                                      AutomationProperties.AutomationId="ValRegionList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Tip}" Style="{StaticResource KeyText}" Margin="0,0,0,3"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- 中：8 步调试闭环操作 + 缺陷结果 -->
+            <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,12,0" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="参数验证（F-3.8.1-02~09 / 12）" Style="{StaticResource PanelTitle}" Margin="0,0,0,8"/>
+                    <WrapPanel Grid.Row="1">
+                        <Button Content="加载文件夹测试" Style="{StaticResource GhostButton}" Margin="0,0,8,8"
+                                Command="{Binding LoadFolderCommand}" AutomationProperties.AutomationId="BtnValLoadFolder"/>
+                        <Button Content="单幅图片测试" Style="{StaticResource GhostButton}" Margin="0,0,8,8"
+                                Command="{Binding TestSingleCommand}" AutomationProperties.AutomationId="BtnValTestSingle"/>
+                        <Button Content="全部图片测试" Style="{StaticResource GhostButton}" Margin="0,0,8,8"
+                                Command="{Binding TestAllCommand}" AutomationProperties.AutomationId="BtnValTestAll"/>
+                        <Button Content="预扫描开始" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"
+                                Command="{Binding PrescanCommand}" AutomationProperties.AutomationId="BtnValPrescan"/>
+                    </WrapPanel>
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="120"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="本地图片（F-3.8.1-02；采集随 T-029 搁置）"
+                                   Style="{StaticResource FieldLabel}"/>
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Images}" MaxHeight="120"
+                                      AutomationProperties.AutomationId="ValImageList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource KeyText}" Margin="0,0,0,2"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Grid.Row="2" Text="缺陷结果列表（F-3.8.1-08）" Style="{StaticResource FieldLabel}" Margin="0,8,0,4"/>
+                        <DataGrid Grid.Row="3" ItemsSource="{Binding DefectResults}" Style="{StaticResource GenericGrid}"
+                                  SelectedItem="{Binding SelectedDefect, Mode=TwoWay}" MinHeight="140"
+                                  AutoGenerateColumns="False" AutomationProperties.AutomationId="ValDefectGrid">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="区域" Binding="{Binding Zone}" Width="90"/>
+                                <DataGridTextColumn Header="类别" Binding="{Binding Category}" Width="70"/>
+                                <DataGridTextColumn Header="行" Binding="{Binding Row}" Width="45"/>
+                                <DataGridTextColumn Header="列" Binding="{Binding Column}" Width="45"/>
+                                <DataGridTextColumn Header="长 μm" Binding="{Binding Length}" Width="65"/>
+                                <DataGridTextColumn Header="宽 μm" Binding="{Binding Width}" Width="65"/>
+                                <DataGridTextColumn Header="面积 μm²" Binding="{Binding Area}" Width="80"/>
+                                <DataGridTextColumn Header="复判状态" Binding="{Binding ReviewState}" Width="80"/>
+                                <DataGridTextColumn Header="原始图片路径" Binding="{Binding SourceImagePath}" Width="160"/>
+                                <DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="220"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                    <StackPanel Grid.Row="3" Margin="0,8,0,0">
+                        <TextBlock Text="原始图片路径（F-3.8.1-09）" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding OriginalImagePath, Mode=OneWay}" IsReadOnly="True"
+                                  Height="28" Padding="8,0" VerticalContentAlignment="Center"
+                                  AutomationProperties.AutomationId="ValOriginalImage"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 右：ROI 参数设置页（F-3.8.1-10 / T-014 可扩展集合，R-H04-06） -->
+            <Border Grid.Column="2" Style="{StaticResource Card}" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="ROI 参数设置页" Style="{StaticResource PanelTitle}" Margin="0,0,0,4"/>
+                    <TextBlock Grid.Row="0" Text="【待确认 T-014】默认占位参数项，可扩展增删，禁止固定滑块"
+                               Style="{StaticResource MetaText}" VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                               TextWrapping="Wrap" Width="180"/>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding ParameterRows}" Margin="0,8,0,0"
+                                      AutomationProperties.AutomationId="ValParameterList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ParameterRow}">
+                                    <Border Background="{StaticResource Surface3}" CornerRadius="6" Padding="8" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="{Binding Key}" Style="{StaticResource KeyText}" FontWeight="SemiBold"/>
+                                            <DockPanel Grid.Row="1" Margin="0,4,0,0">
+                                                <TextBox Width="130" Style="{StaticResource FieldBox}"
+                                                         Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Text="{Binding Unit}" Style="{StaticResource MetaText}"
+                                                           Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                            <TextBlock Grid.Row="2" Text="{Binding Description}" Style="{StaticResource MetaText}"
+                                                       TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                        <Button Content="应用参数（调试闭环第 5 步）" Style="{StaticResource GhostButton}"
+                                Command="{Binding ApplyParametersCommand}"
+                                AutomationProperties.AutomationId="BtnValApplyParameters"/>
+                        <TextBlock Text="新增参数项（T-014 扩展集合）" Style="{StaticResource FieldLabel}" Margin="0,10,0,4"/>
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="参数键" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Width="146" Text="{Binding NewParameterKey}"
+                                         AutomationProperties.AutomationId="FieldValNewParamKey"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="初值" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Width="120" Text="{Binding NewParameterValue}"
+                                         AutomationProperties.AutomationId="FieldValNewParamValue"/>
+                            </StackPanel>
+                        </WrapPanel>
+                        <Button Content="添加参数项" Style="{StaticResource GhostButton}" Margin="0,8,0,0"
+                                Command="{Binding AddParameterCommand}"
+                                AutomationProperties.AutomationId="BtnValAddParameter"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 页脚：状态、闭环、设备搁置与关闭（×）自动保存 -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="16,10">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="关闭并保存（BR-40）" Style="{StaticResource PrimaryButton}"
+                        Click="Close_Click" AutomationProperties.AutomationId="BtnValClose"/>
+                <StackPanel Margin="0,0,14,0">
+                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource KeyText}"
+                               AutomationProperties.AutomationId="ValidationStatusText"/>
+                    <TextBlock Text="{Binding LoopStepText}" Style="{StaticResource MetaText}" Margin="0,4,0,0"
+                               AutomationProperties.AutomationId="ValidationLoopStep"/>
+                    <TextBlock Text="{Binding ClosedLoopText}" Style="{StaticResource MetaText}" Margin="0,4,0,0"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding DeviceNote}" Foreground="{StaticResource Warn}" FontSize="11.5"
+                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

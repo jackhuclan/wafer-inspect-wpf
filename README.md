@@ -41,16 +41,16 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 
 | 目录 | 用途 |
 |---|---|
-| `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Recipes/`、`Run/`、`Simulation/`、`DependencyInjection/` |
-| `src/WaferInspect.App` | WPF 主程序：`Views/`（含检测任务与配方管理视图、对话框）、`ViewModels/`（含 `Modules/` 的 H01~H10，其中 H01/H02 已实现）、`Models/`、`Services/` 等 |
-| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机、手动装载序列 / Job 目录、Job 仓库与 Map 导入、子配方七步向导（T-042 顺序 / B-25 / BR-19 / T-005）单测（86 项） |
+| `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Recipes/`、`Alignment/`、`Inspection/`、`Run/`、`Simulation/`、`DependencyInjection/` |
+| `src/WaferInspect.App` | WPF 主程序：`Views/`（检测任务、配方管理、缺陷分析、子配方向导、参数验证页与共享 Map 画布）、`ViewModels/`（含 `Modules/` 的 H01~H10，其中 H01/H02/H03/H04 已实现）、`Models/`、`Services/` 等 |
+| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机、Job 仓库与 Map 导入、子配方七步向导（T-042 / B-25 / BR-19 / T-005）、H03 对位引擎、H04 ROI 与扫描区域唯一数据源（BR-35~42 / AC-P2-03/05）单测（139 项） |
 | `tools/WaferInspect.Smoke` | 启动冒烟工具 |
 | `.github/workflows/build.yml` | CI：restore + Release 构建 + 单元测试 |
 
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（0.9.0）
+## 架构（1.0.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -87,7 +87,18 @@ UIAutomation 全流程实测（选 Job → 应用 → 开始运行 → 实时进
 为 **B-08 全系统唯一模板匹配实现**（AC-P2-04，H05 Wafer 扫描将复用同一单例）、BR-21 光照校准、
 BR-26 Mark 方向校验、T-024 点位重置二次确认、GoldenDie 唯一生成（B-09，H08 只读）；向导步骤 2/3/4
 接入视窗图像拖拽框选自动拉平（模拟视窗显式标注，H06 采集随 T-029 搁置）、Map 定位网格拖动/锁定/
-双击 Die 填行列、参考图像生成与 FOV 手动调整入口。P2 未关闭（剩余 H04 → H05）；明细见 [`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
+双击 Die 填行列、参考图像生成与 FOV 手动调整入口。
+
+1.0.0 交付 P2 增量 4（H04 检测算法与 ROI 配置，用户确认顺序 H03 → H04 → H05 的第二项）：
+`Core/Inspection` 落地 `IRoiScanAreaStore` —— **B-01/B-02 与 AC-P2-03 的唯一数据源**，
+配方向导步骤 5/6、缺陷分析页与「算法参数调试 · 参数验证」页共用同一单例，
+D-01/D-02 的「首页与配方各自维护 ROI」已消除。含 ROI 7 步流程（F-3.2.2-68~75）、
+扫描区域/抽检（BR-37~39）、参数验证 11 项与 8 步调试闭环（F-3.8.1-02~12）、
+关闭页面自动保存（BR-40 / AC-P2-05）、T-014 可扩展算法参数集合（非固定滑块）、
+B-23 统一 `DefectRecord`（H01/H04/H08 共用）。预扫描仅覆盖框选区域（BR-41），
+设备采集/运动/AI 推理仍按 T-029/T-035 搁置，结果为确定性离线演算并显式标注，不伪造设备执行。
+H04 已交付，P2 未关闭（剩余 H05 MapType 编辑与快捷键 / AC-P2-06）；明细见
+[`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
 F↔R↔AC 追溯和待确认项见 [`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
 
 ## 左侧导航配置
@@ -111,5 +122,6 @@ new NavGroupDefinition("system", "系统", /* DefaultExpanded */ false,
 
 - `Nullable` 暂为 `disable`（ViewModel 仍依赖 WPF 类型，详见 AGENTS.md §4）；
 - 数据仍为 1 Hz 模拟数据；良率读取已切换到可替换的 `IDataSource`，检测运行由 `WaferRunController` 模拟推进；
-- 设备连接未接入（T-029 / T-030 待确认）：所有真实设备动作暂被搁置，界面动作以「[搁置] 未下发」日志与提示明确标注，不伪造成功；
+- 设备连接未接入（T-029 / T-030 待确认）：所有真实设备动作暂被搁置，界面动作以「[搁置] 未下发」日志与提示明确标注，不伪造成功；H04 单幅/全部图片测试与预扫描均为确定性离线演算，AI 推理随 T-035 搁置；
+- ROI 具体算法参数项（T-014）与高级参数行为（T-032）待实机 / 算法文档确认：当前以检测 / 量测 / 全局三组可扩展集合 + 显式标注的占位项保留，未用固定滑块替代；
 - 配套的高保真 HTML 原型不在本仓库内。

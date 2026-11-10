@@ -38,6 +38,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private readonly IAlarmCenter _alarmCenter;
     private readonly H01RunViewModel _detection;
     private readonly H02RecipeViewModel _recipes;
+    private readonly H04InspectionViewModel _inspection;
     private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
     private readonly Random _rng = new(20261109);
@@ -63,6 +64,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         IAlarmCenter alarmCenter,
         H01RunViewModel detection,
         H02RecipeViewModel recipes,
+        H04InspectionViewModel inspection,
         ILogger<MainViewModel> logger)
     {
         _catalog = catalog;
@@ -76,6 +78,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         _alarmCenter = alarmCenter;
         _detection = detection;
         _recipes = recipes;
+        _inspection = inspection;
         _logger = logger;
 
         // 模块内导航（例如「配方管理」跳 H02）复用主窗口统一导航入口。
@@ -130,6 +133,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     [ObservableProperty] private bool _isOverview = true;
     [ObservableProperty] private bool _isTasks;
     [ObservableProperty] private bool _isRecipes;
+    [ObservableProperty] private bool _isDefects;
     [ObservableProperty] private bool _isAlarms;
     [ObservableProperty] private bool _isLive;
     [ObservableProperty] private bool _isGeneric;
@@ -169,6 +173,9 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
 
     /// <summary>H02 配方与 Job 管理页 ViewModel（P2），由 RecipeView 直接绑定。</summary>
     public H02RecipeViewModel Recipes => _recipes;
+
+    /// <summary>H04 检测算法与 ROI 配置页（P2），由 DefectAnalysisView 直接绑定；与向导共用唯一数据源。</summary>
+    public H04InspectionViewModel Inspection => _inspection;
 
     public List<NavGroup> NavGroups { get; private set; }
     public List<DeviceItem> Devices { get; private set; }
@@ -464,10 +471,11 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         IsOverview = key == "overview";
         IsTasks = key == "tasks";
         IsRecipes = key == "recipes";
+        IsDefects = key == "defects";
         IsAlarms = key == "alarms";
         IsLive = key == "live";
         IsModuleSkeleton = page.IsMigrationSkeleton;
-        IsGeneric = !(IsOverview || IsTasks || IsRecipes || IsAlarms || IsLive || IsModuleSkeleton);
+        IsGeneric = !(IsOverview || IsTasks || IsRecipes || IsDefects || IsAlarms || IsLive || IsModuleSkeleton);
         if (IsGeneric) BuildModuleTable(key);
 
         StatusMessage = $"当前视图：{PageCrumb}";

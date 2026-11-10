@@ -640,6 +640,12 @@
                         <views:RecipeView DataContext="{Binding Recipes}"/>
                     </Grid>
 
+                    <!-- 视图 2c：缺陷分析（H04 算法参数调试 / 参数验证，PRD 4.4 / F-3.8.1-01~12）。
+                         Visibility 留在外层 Grid，内层视图绑定子 ViewModel；与向导步骤 5/6 共用唯一数据源。 -->
+                    <Grid Visibility="{Binding IsDefects, Converter={StaticResource BoolVis}}">
+                        <views:DefectAnalysisView DataContext="{Binding Inspection}"/>
+                    </Grid>
+
                     <!-- 视图 3：告警中心 -->
                     <Border Style="{StaticResource Card}" Visibility="{Binding IsAlarms, Converter={StaticResource BoolVis}}">
                         <Grid>

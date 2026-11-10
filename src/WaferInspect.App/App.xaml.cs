@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WaferInspect.Core.DependencyInjection;
+using WaferInspect.Core.Inspection;
 using WaferInspect.Core.Security;
 using WaferInspectHMI.Navigation;
 using WaferInspectHMI.Services;
@@ -43,6 +44,13 @@ public partial class App : Application
                     services.AddSingleton<INavGroupFactory, NavGroupFactory>();
                     services.AddSingleton<IH01DialogService, H01DialogService>();
                     services.AddSingleton<IH02DialogService, H02DialogService>();
+                    // H04 参数验证页：窗口由工厂组装，对话框服务只负责打开；关闭自动保存在窗口 Closing 中触发。
+                    services.AddSingleton<IH04DialogService, H04DialogService>();
+                    services.AddTransient<Func<string, ParameterValidationDialog>>(provider => recipeId =>
+                        new ParameterValidationDialog(
+                            recipeId,
+                            provider.GetRequiredService<IRoiScanAreaStore>(),
+                            provider.GetRequiredService<IH04DialogService>()));
                     // 子配方向导（F-3.2.2）：VM 按父 Job 每次新建，窗口由工厂组装，对话框服务只负责打开。
                     services.AddTransient<Func<string, SubRecipeWizardViewModel>>(provider => parentJobId =>
                         ActivatorUtilities.CreateInstance<SubRecipeWizardViewModel>(provider, parentJobId));
@@ -54,7 +62,9 @@ public partial class App : Application
                     services.AddSingleton<H02RecipeViewModel>();
                     services.AddSingleton<ModuleViewModelBase>(provider => provider.GetRequiredService<H02RecipeViewModel>());
                     services.AddSingleton<ModuleViewModelBase, H03AlignmentViewModel>();
-                    services.AddSingleton<ModuleViewModelBase, H04InspectionViewModel>();
+                    services.AddSingleton<H04InspectionViewModel>();
+                    services.AddSingleton<ModuleViewModelBase>(provider =>
+                        provider.GetRequiredService<H04InspectionViewModel>());
                     services.AddSingleton<ModuleViewModelBase, H05MapViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H06DeviceControlViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H07ConfigurationViewModel>();
@@ -119,11 +129,22 @@ public partial class App : Application
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        MessageBox.Show(
-            $"未处理的界面异常：{e.Exception.Message}",
+        // 界面异常先落盘（无控制台环境下保留调用栈），再异步弹窗：
+        // 同步 MessageBox 的嵌套消息循环会让同一异常反复进入本处理器（P2 H04 回归教训）。
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(AppContext.BaseDirectory, "ui-error.log"),
+                $"[{DateTime.Now:HH:mm:ss}] {e.Exception}{Environment.NewLine}");
+        }
+        catch { /* 日志失败不掩盖原始异常 */ }
+
+        string message = e.Exception.Message;
+        Dispatcher.BeginInvoke(new Action(() => MessageBox.Show(
+            $"未处理的界面异常：{message}",
             "WaferInspect 运行错误",
             MessageBoxButton.OK,
-            MessageBoxImage.Error);
+            MessageBoxImage.Error)));
         e.Handled = true;
     }
 }

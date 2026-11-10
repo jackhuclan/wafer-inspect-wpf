@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WaferInspect.Core.Alignment;
+using WaferInspect.Core.Inspection;
 using WaferInspect.Core.Maps;
 using WaferInspect.Core.Recipes;
 
@@ -17,17 +18,18 @@ namespace WaferInspectHMI.ViewModels.Modules;
 /// · 步骤顺序固定为 T-042 确认的 7 步，禁止跳步（第一步未成功不得进入下一步）；
 /// · BR-19：已完成步骤随时可点击重新进入执行；
 /// · 步骤 1 基础信息为 T-005 确认的全字段表单（5 分区 33 字段）；
-/// · 步骤 2~6 的图形化交互（框选拉平、全景图 Mark、ROI 圈选）由 H03/H04/H06 提供
-///   （下一增量，用户已确认按 H03 → H04 → H05 顺序），当前步骤允许以数据编辑方式完成，
-///   并在界面明确标注能力接入状态，不伪造设备执行成功；
+/// · 步骤 2~4 的图形化交互由 H03 提供（0.9.0）；步骤 5/6 由 H04 提供（1.0.0），
+///   与「缺陷分析 · 参数验证」共用 <see cref="IRoiScanAreaStore"/> 同一单例（B-01/B-02、AC-P2-03）；
+///   图像采集与设备动作仍按用户裁决搁置（T-029），界面显式标注不伪造执行成功；
 /// · 步骤 7 复判设置（R-H02-07，BR-20）写入子配方，运行时供 H08 读取。
 /// </summary>
-public sealed partial class SubRecipeWizardViewModel : ObservableObject
+public sealed partial class SubRecipeWizardViewModel : ObservableObject, IMapRegionCanvasHost
 {
     private readonly ISubRecipeRepository _subs;
     private readonly IJobRepository _jobs;
     private readonly IMapTypeCatalog _mapTypes;
     private readonly IH02DialogService _dialogs;
+    private readonly IRoiScanAreaStore _store;
     private readonly string _parentJobId;
 
     // H03 对位能力（B-08 唯一实现；AC-P2-04：H05 Wafer 扫描后续复用同一引擎单例）。
@@ -50,6 +52,12 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
     /// <summary>表单回填期间抑制「选中项变化 → 重填表单」的递归。</summary>
     private bool _loading;
 
+    /// <summary>H04 数据源回填期间抑制属性 setter 反向写回 store。</summary>
+    private bool _syncingRoi;
+
+    /// <summary>批量写 store 期间抑制逐条 Changed 触发的重载（避免覆盖正在编辑的表单）。</summary>
+    private bool _suppressStoreSync;
+
     public SubRecipeWizardViewModel(
         string parentJobId,
         IJobRepository jobs,
@@ -60,13 +68,15 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
         LightCalibrationAnalyzer lightAnalyzer,
         MarkAlignmentService markService,
         ReferenceImagePlanner planner,
-        MapFileImporter mapImporter)
+        MapFileImporter mapImporter,
+        IRoiScanAreaStore store)
     {
         _parentJobId = parentJobId;
         _jobs = jobs;
         _subs = subs;
         _mapTypes = mapTypes;
         _dialogs = dialogs;
+        _store = store;
         _matcher = matcher;
         _lightAnalyzer = lightAnalyzer;
         _markService = markService;
@@ -79,6 +89,12 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
         foreach (var type in mapTypes.Types) MapTypeNames.Add(type.Name);
 
         _subs.Changed += (_, _) => ReloadSubs();
+        // H04 唯一数据源：参数验证页 / 缺陷分析页改动后，向导步骤 5/6 立即看到同一份数据。
+        _store.Changed += (_, recipeId) =>
+        {
+            if (!_suppressStoreSync && HasRecipe && string.Equals(recipeId, _recipe.Id, StringComparison.Ordinal))
+                SyncRoiFromStore();
+        };
         ReloadSubs();
     }
 
@@ -256,13 +272,54 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
     [ObservableProperty] private bool _riGenerated;
     [ObservableProperty] private string _riSummaryText = "尚未生成参考图像（F-3.2.2-67：生成成功后才允许下一步）";
 
-    /* ---------------- 步骤 5：ROI（AC-P2-03） ---------------- */
+    /* ---------------- 步骤 5：ROI（AC-P2-03，H04 唯一数据源） ---------------- */
 
     public ObservableCollection<RoiZoneRow> RoiRows { get; } = new();
+
+    /// <summary>检测设置列表（F-3.2.2-69：每项为独立检测单元，保存后才算完成）。</summary>
+    public ObservableCollection<RoiItemRow> RoiItemRows { get; } = new();
+
+    /// <summary>共享 Map 圈选画布状态（与缺陷分析 / 参数验证页同一构建规则）。</summary>
+    public MapRegionCanvasState Map { get; } = new();
+
+    public IReadOnlyList<string> TargetKindOptions { get; } = new[] { RoiTargetKind.Zone.Text(), RoiTargetKind.Pad.Text() };
+
+    public IReadOnlyList<string> ExtractionOptions { get; } = new[]
+    {
+        RegionExtraction.TemplateMatching.Text(), RegionExtraction.Binarization.Text()
+    };
+
+    public IReadOnlyList<string> GoldenToneOptions { get; } = new[]
+    {
+        GoldenImageTone.Bright.Text(), GoldenImageTone.Dark.Text()
+    };
+
+    /// <summary>F-3.2.2-75：7 步 ROI 操作流程（顺序固定，界面显式呈现，不静默省略）。</summary>
+    public const string RoiWorkflowText =
+        "① 选 Zone/Pad → ② 选检测项 → ③ 命名 → ④ 绘制/提取区域 → " +
+        "⑤ 参数类型选 Surface（常用，BR-35）或其他 → ⑥ 右下角保存 → ⑦ 下一步";
+
+    [ObservableProperty] private string _roiSourceText = "H04 唯一数据源尚未载入";
+
+    [ObservableProperty] private string _roiItemStatusText = "尚未添加检测设置项";
 
     /* ---------------- 步骤 6：扫描区域（AC-P2-03） ---------------- */
 
     [ObservableProperty] private bool _scanFullWafer = true;
+
+    [ObservableProperty] private bool _samplingEnabled;
+
+    partial void OnScanFullWaferChanged(bool value)
+    {
+        if (_loading || _syncingRoi || !HasRecipe) return;
+        _store.SetFullWafer(_recipe.Id, value);
+    }
+
+    partial void OnSamplingEnabledChanged(bool value)
+    {
+        if (_loading || _syncingRoi || !HasRecipe) return;
+        _store.SetSamplingEnabled(_recipe.Id, value);
+    }
 
     /* ---------------- 步骤 7：复判设置（R-H02-07，BR-20） ---------------- */
 
@@ -393,17 +450,8 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
             ? SummarizeGoldenDie(_recipe.ReferenceImage.GoldenDie)
             : "尚未生成参考图像（F-3.2.2-67：生成成功后才允许下一步）";
 
-        // 步骤 5 ROI。
-        RoiRows.Clear();
-        foreach (var zone in _recipe.RoiZones)
-            RoiRows.Add(new RoiZoneRow(zone.Index)
-            {
-                Name = zone.Name, X = zone.X.ToString("0.###"), Y = zone.Y.ToString("0.###"),
-                Width = zone.Width.ToString("0.###"), Height = zone.Height.ToString("0.###")
-            });
-
-        // 步骤 6 扫描区域。
-        ScanFullWafer = _recipe.ScanArea.FullWafer;
+        // 步骤 5/6：ROI 与扫描区域统一从 H04 唯一数据源回填（AC-P2-03，不读工作副本的旧投影）。
+        SyncRoiFromStore();
 
         // 步骤 7 复判设置（BR-20）。
         RcMode = _recipe.Recheck.Mode.Text();
@@ -547,9 +595,11 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
             WizardStepKey.ReferenceImage =>
                 "设置参考 Die 数量并「创建参考图像」（F-3.2.2-67）；分类口径：黄=待检测、蓝=预聚焦、红=参考 Die（可能没有）、绿=随机选中参考 Die。GoldenDie 由 H03 唯一生成（B-09），H08 只读展示。",
             WizardStepKey.Roi =>
-                "ROI 区域定义（AC-P2-03：ROI 与扫描区域共用 H04 单一数据源）。图形化圈选由 H04 提供（下一增量），当前以区域数据完成本步。",
+                "ROI（H04 已接入）：在 Map 画布拖拽圈选区域（F-3.2.2-70），按 7 步流程编辑检测设置项并逐项保存（F-3.2.2-75）；" +
+                "Pad 检测选 Pad、其他选 Zone（F-3.2.2-68），参数类型默认 Surface（BR-35）。与「缺陷分析 · 参数验证」共用同一数据源（AC-P2-03）。",
             WizardStepKey.ScanArea =>
-                "扫描区域（AC-P2-03）：勾选「全片扫描」或引用已定义的 ROI 区域。",
+                "扫描区域（H04 已接入，BR-37~39）：默认全片扫描；拖拽 Map 画布添加局部区域（可多个），「清除扫描区域」清空全部；" +
+                "抽检模式可双击选单个 Die（可多个）。本页的区域与参数验证页是同一份数据（AC-P2-03）。",
             WizardStepKey.Recheck =>
                 "复判设置（F-3.2.2-80~82，BR-20：默认离线复判 + 复查相机）。保存后双击 Map 定位 Die 的校验动作由 H03 图形能力支持（下一增量）；本配置写入子配方，运行时由 H08 读取。",
             _ => string.Empty
@@ -793,31 +843,278 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
 
     private List<SubRecipeValidationIssue> EvaluateRoi()
     {
-        var zones = new List<RoiZone>();
-        foreach (var row in RoiRows)
-        {
-            zones.Add(new RoiZone(row.Index,
-                row.Name?.Trim() ?? string.Empty,
-                ParseDouble(row.X, 0), ParseDouble(row.Y, 0),
-                ParseDouble(row.Width, 0), ParseDouble(row.Height, 0)));
-        }
-        _recipe.RoiZones = zones;
-        return SubRecipeValidator.ValidateRoiZones(zones).ToList();
+        if (!ApplyRoiRowEdits(out string error))
+            return [new("RoiZones", error)];
+
+        // AC-P2-03：校验直接针对 H04 唯一数据源的快照，不针对界面副本。
+        var snapshot = _store.Snapshot(_recipe.Id);
+        return InspectionValidator.ValidateRoi(snapshot).ToList();
     }
 
     private List<SubRecipeValidationIssue> EvaluateScanArea()
     {
-        _recipe.ScanArea = new ScanAreaConfig
+        var snapshot = _store.Snapshot(_recipe.Id);
+        return InspectionValidator.ValidateScanArea(snapshot).ToList();
+    }
+
+    /* ---------------- H04：步骤 5/6 与唯一数据源（B-01/B-02、AC-P2-03） ---------------- */
+
+    /// <summary>从 H04 唯一数据源回填 ROI 区域、检测项、Map 画布与扫描区域状态。</summary>
+    private void SyncRoiFromStore()
+    {
+        if (!HasRecipe || string.IsNullOrEmpty(_recipe.Id)) return;
+
+        _syncingRoi = true;
+        try
         {
-            FullWafer = ScanFullWafer,
-            RoiIndexes = ScanFullWafer ? [] : _recipe.RoiZones.Select(z => z.Index).ToList()
+            var snapshot = _store.Snapshot(_recipe.Id);
+            Map.Rebuild(snapshot);
+
+            RoiRows.Clear();
+            foreach (var zone in snapshot.Zones)
+                RoiRows.Add(new RoiZoneRow(zone.Index)
+                {
+                    Name = zone.Name,
+                    X = zone.X.ToString("0.###"), Y = zone.Y.ToString("0.###"),
+                    Width = zone.Width.ToString("0.###"), Height = zone.Height.ToString("0.###")
+                });
+
+            RoiItemRows.Clear();
+            foreach (var item in snapshot.DetectionItems) RoiItemRows.Add(ToRoiItemRow(item));
+
+            ScanFullWafer = snapshot.FullWafer;
+            SamplingEnabled = snapshot.SamplingEnabled;
+            RoiSourceText = $"H04 唯一数据源 · ROI {snapshot.Zones.Count} 个 / 检测项 {snapshot.DetectionItems.Count} 项 / " +
+                            $"扫描区域 {snapshot.ScanRegions.Count} 个 / 抽检 Die {snapshot.SamplingDies.Count} 颗 · " +
+                            $"参数 {snapshot.Parameters.Count} 项（T-014 可扩展）· 自动保存 v{snapshot.SavedVersion}";
+            RoiItemStatusText = snapshot.DetectionItems.Count == 0
+                ? "尚未添加检测设置项（F-3.2.2-69：每项为独立检测单元）"
+                : $"检测设置项 {snapshot.DetectionItems.Count} 项，已保存 {snapshot.DetectionItems.Count(i => i.Saved)} 项";
+        }
+        finally
+        {
+            _syncingRoi = false;
+        }
+    }
+
+    private static RoiItemRow ToRoiItemRow(DetectionItem item) => new(item.Id)
+    {
+        Name = item.Name,
+        Kind = item.Kind.Text(),
+        AlgorithmType = item.AlgorithmType,
+        ParameterType = item.ParameterType,
+        Extraction = item.Extraction.Text(),
+        GoldenTone = item.GoldenTone.Text(),
+        RegionX = item.GoldenTemplateRegion.X.ToString("0.###"),
+        RegionY = item.GoldenTemplateRegion.Y.ToString("0.###"),
+        RegionW = item.GoldenTemplateRegion.Width.ToString("0.###"),
+        RegionH = item.GoldenTemplateRegion.Height.ToString("0.###"),
+        RoiZoneIndex = item.RoiZoneIndex,
+        Saved = item.Saved,
+        StatusText = item.Saved ? "已保存" : "未保存"
+    };
+
+    /// <summary>把区域表的文本编辑批量写回唯一数据源；解析失败整体回滚前不写。</summary>
+    private bool ApplyRoiRowEdits(out string error)
+    {
+        error = string.Empty;
+        if (!HasRecipe) return true;
+
+        var parsed = new List<RoiZone>();
+        foreach (var row in RoiRows)
+        {
+            double x = ParseDouble(row.X, 0), y = ParseDouble(row.Y, 0);
+            double w = ParseDouble(row.Width, 0), h = ParseDouble(row.Height, 0);
+            if (x < 1 || y < 1 || w <= 0 || h <= 0)
+            {
+                error = $"ROI「{row.Name}」坐标必须为 1-based Die 网格且宽高大于 0（F-3.2.2-70）；当前 X={row.X} Y={row.Y} W={row.Width} H={row.Height}";
+                return false;
+            }
+            parsed.Add(new RoiZone(row.Index, row.Name?.Trim() ?? string.Empty, x, y, w, h));
+        }
+
+        _suppressStoreSync = true;
+        try
+        {
+            foreach (var zone in parsed)
+                _store.UpdateRoiZone(_recipe.Id, zone.Index,
+                    new MapRect(zone.X, zone.Y, zone.Width, zone.Height), zone.Name);
+        }
+        finally
+        {
+            _suppressStoreSync = false;
+        }
+        return true;
+    }
+
+    /// <summary>共享画布拖拽：步骤 5 生成 ROI 区域，步骤 6 生成扫描区域（同一数据源，不复制实现）。</summary>
+    public void AddRegion(MapRect rect)
+    {
+        if (!HasRecipe) return;
+        if (_wizard.Current.Key == WizardStepKey.Roi)
+        {
+            _store.AddRoiZone(_recipe.Id, rect, null, ParseTargetKind(RoiItemRows.FirstOrDefault()?.Kind));
+            StatusText = $"已在 Map 画布圈选 ROI 区域（F-3.2.2-70，列 {rect.X:0} 起 {rect.Width:0} 列）";
+        }
+        else
+        {
+            _store.AddScanRegion(_recipe.Id, rect, "向导步骤 6 · Map 圈选");
+            StatusText = $"已添加扫描区域（F-3.2.2-77，列 {rect.X:0} 起 {rect.Width:0} 列）";
+        }
+    }
+
+    /// <summary>共享画布双击：抽检 Die（BR-38，可多个；扫描区域步骤生效）。</summary>
+    public void ToggleDie(int row, int column)
+    {
+        if (!HasRecipe) return;
+        _store.ToggleSamplingDie(_recipe.Id, row, column);
+        StatusText = $"抽检 Die（行 {row} / 列 {column}）已切换（BR-38）";
+    }
+
+    [RelayCommand]
+    private void AddRoiZone()
+    {
+        if (!HasRecipe) return;
+        _store.AddRoiZone(_recipe.Id, new MapRect(1, 1, 4, 4));
+        StatusText = "已添加 ROI 区域（默认 4×4 Die，可在区域表或 Map 画布调整）";
+    }
+
+    [RelayCommand]
+    private void RemoveRoiZone(RoiZoneRow row)
+    {
+        if (row == null || !HasRecipe) return;
+        _store.RemoveRoiZone(_recipe.Id, row.Index);
+        StatusText = "已移除 ROI 区域（索引连续化，检测项引用同步更新）";
+    }
+
+    [RelayCommand]
+    private void ApplyRoiRows()
+    {
+        if (!ApplyRoiRowEdits(out string error))
+        {
+            _dialogs.ShowMessage("应用 ROI 区域编辑失败", error);
+            return;
+        }
+        SyncRoiFromStore();
+        StatusText = "已把区域表编辑写入 H04 唯一数据源（AC-P2-03）";
+    }
+
+    [RelayCommand]
+    private void AddDetectionItem()
+    {
+        if (!HasRecipe) return;
+        RoiItemRows.Add(new RoiItemRow(string.Empty)
+        {
+            Name = $"检测项 {RoiItemRows.Count + 1}",
+            StatusText = "未保存（需点击「保存本项」）"
+        });
+        RoiItemStatusText = "已新增检测设置项：填写名称/算法类型/区域后点击「保存本项」（F-3.2.2-75）";
+    }
+
+    [RelayCommand]
+    private void SaveDetectionItem(RoiItemRow row)
+    {
+        if (row == null || !HasRecipe) return;
+        double x = ParseDouble(row.RegionX, 1), y = ParseDouble(row.RegionY, 1);
+        double w = ParseDouble(row.RegionW, 1), h = ParseDouble(row.RegionH, 1);
+        if (x < 1 || y < 1 || w <= 0 || h <= 0)
+        {
+            _dialogs.ShowMessage("保存检测项失败", "Golden Die 模板中的检测区域必须为 1-based Die 网格且宽高 > 0。");
+            return;
+        }
+
+        var item = new DetectionItem
+        {
+            Id = row.Id,
+            Name = row.Name?.Trim() ?? string.Empty,
+            Kind = ParseTargetKind(row.Kind),
+            AlgorithmType = row.AlgorithmType?.Trim() ?? string.Empty,
+            GoldenTemplateRegion = new MapRect(x, y, w, h),
+            RoiZoneIndex = row.RoiZoneIndex,
+            ParameterType = string.IsNullOrWhiteSpace(row.ParameterType)
+                ? InspectionText.DefaultParameterType : row.ParameterType.Trim(),
+            Extraction = ParseExtraction(row.Extraction),
+            GoldenTone = ParseGoldenTone(row.GoldenTone),
+            // BR-36：有效/屏蔽区域仅限制区域提取算法生效范围，不影响检测范围；此处保留配置位。
+            EffectiveRegion = null,
+            MaskedRegion = null,
+            Parameters = _store.Snapshot(_recipe.Id).Parameters
         };
 
-        if (!ScanFullWafer && _recipe.RoiZones.Count == 0)
-            return [new("ScanArea", "未勾选全片扫描时，必须先在「ROI」步骤定义至少 1 个区域（AC-P2-03）")];
-
-        return [];
+        try
+        {
+            var saved = _store.SaveDetectionItem(_recipe.Id, item);
+            row.Id = saved.Id;
+            row.Saved = true;
+            row.StatusText = "已保存";
+            SyncRoiFromStore();
+            StatusText = $"检测项「{saved.Name}」已保存（F-3.2.2-75 第 6 步；右下角保存后才算完成）";
+        }
+        catch (InvalidOperationException ex)
+        {
+            _dialogs.ShowMessage("保存检测项失败", ex.Message);
+        }
     }
+
+    [RelayCommand]
+    private void RemoveDetectionItem(RoiItemRow row)
+    {
+        if (row == null || !HasRecipe) return;
+        if (!string.IsNullOrEmpty(row.Id)) _store.RemoveDetectionItem(_recipe.Id, row.Id);
+        RoiItemRows.Remove(row);
+        StatusText = "已移除检测设置项";
+    }
+
+    /// <summary>步骤 6 键盘 / UIA 等价路径：引用步骤 5 已定义的 ROI 区域作为扫描区域。</summary>
+    [RelayCommand]
+    private void AddScanRegionsFromRoi()
+    {
+        if (!HasRecipe) return;
+        var zones = _store.Snapshot(_recipe.Id).Zones;
+        if (zones.Count == 0)
+        {
+            _dialogs.ShowMessage("添加扫描区域", "请先在步骤 5 定义 ROI 区域（或在 Map 画布拖拽圈选）。");
+            return;
+        }
+
+        _suppressStoreSync = true;
+        try
+        {
+            foreach (var zone in zones)
+                _store.AddScanRegion(_recipe.Id, MapRect.From(zone), "向导步骤 6 · 引用 ROI");
+        }
+        finally
+        {
+            _suppressStoreSync = false;
+        }
+        SyncRoiFromStore();
+        StatusText = $"已引用 {zones.Count} 个 ROI 区域作为扫描区域（BR-39 支持多个）";
+    }
+
+    [RelayCommand]
+    private void ClearScanRegions()
+    {
+        if (!HasRecipe) return;
+        _store.ClearScanRegions(_recipe.Id);
+        StatusText = "已清除全部扫描区域并恢复默认全片扫描（BR-37/39）";
+    }
+
+    [RelayCommand]
+    private void ClearSamplingDies()
+    {
+        if (!HasRecipe) return;
+        _store.ClearSamplingDies(_recipe.Id);
+        StatusText = "已清空抽检 Die";
+    }
+
+    private static RoiTargetKind ParseTargetKind(string text)
+        => text == RoiTargetKind.Pad.Text() ? RoiTargetKind.Pad : RoiTargetKind.Zone;
+
+    private static RegionExtraction ParseExtraction(string text)
+        => text == RegionExtraction.Binarization.Text() ? RegionExtraction.Binarization : RegionExtraction.TemplateMatching;
+
+    private static GoldenImageTone ParseGoldenTone(string text)
+        => text == GoldenImageTone.Dark.Text() ? GoldenImageTone.Dark : GoldenImageTone.Bright;
 
     private List<SubRecipeValidationIssue> EvaluateRecheck()
     {
@@ -837,6 +1134,8 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
         var keepCurrent = _wizard.Current.Key;
         try
         {
+            // AC-P2-03：持久化前把 H04 唯一数据源的状态写回子配方（这是唯一写回出口，界面不另写副本）。
+            if (HasRecipe && !string.IsNullOrEmpty(_recipe.Id)) _store.ApplyTo(_recipe.Id, _recipe);
             _recipe = _subs.Update(_recipe);
             _wizard = new SubRecipeWizard(_recipe);
             _wizard.Focus(keepCurrent);
@@ -907,21 +1206,6 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(path)) return;
         RiImagePath = path;
         StatusText = $"已选择参考图像：{path}";
-    }
-
-    [RelayCommand]
-    private void AddRoiZone()
-    {
-        RoiRows.Add(new RoiZoneRow(RoiRows.Count) { Name = $"ROI {RoiRows.Count + 1}", Width = "1", Height = "1" });
-        StatusText = $"已添加 ROI 区域（共 {RoiRows.Count} 个，AC-P2-03）";
-    }
-
-    [RelayCommand]
-    private void RemoveRoiZone(RoiZoneRow row)
-    {
-        if (row == null) return;
-        RoiRows.Remove(row);
-        StatusText = $"已移除 ROI 区域（剩 {RoiRows.Count} 个）";
     }
 
     /* ---------------- H03：拉平执行（F-3.2.2-38/39，B-08 引擎） ---------------- */

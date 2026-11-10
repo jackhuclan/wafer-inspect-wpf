@@ -54,11 +54,13 @@ src/WaferInspect.App/
 │                             SubRecipeWizardDialog（七步向导窗口）与配套对话框 SelectJob / EfemSettings /
 │                             WaferConfirm / JobInfo / RenameJob
 ├─ ViewModels/                页面状态编排、[ObservableProperty] / [RelayCommand]
-│  └─ Modules/                H01~H10 模块 ViewModel：H01/H02/H03（H01RunViewModel / H02RecipeViewModel /
-│                             SubRecipeWizardViewModel 含 H03 图形交互）已实现，其余为骨架
+│  └─ Modules/                H01~H10 模块 ViewModel：H01/H02/H03/H04（H01RunViewModel /
+│                             H02RecipeViewModel / SubRecipeWizardViewModel 含 H03+H04 图形交互 /
+│                             H04InspectionViewModel / H04ParameterValidationViewModel）已实现，其余为骨架
 ├─ Models/                    绑定模型（ObservableBase / NavGroup / NavItem / 任务 / 告警 …）
 ├─ Navigation/                把 Core 的纯配置转成运行时导航模型（实例服务）
-├─ Services/                  1 Hz 数据泵与其 IHostedService 托管；H01/H02DialogService（对话框边界实现）
+├─ Services/                  1 Hz 数据泵与其 IHostedService 托管；
+│                             H01/H02/H04DialogService（对话框边界实现）
 ├─ Converters/                XAML 值转换器
 └─ Themes/                    语义色板、控件模板、状态样式
 
@@ -72,7 +74,13 @@ src/WaferInspect.Core/
 ├─ Recipes/                   H02 Job 域：JobDefinition（F-3.2.1-06~28）、JobValidator（必填/BR-15/16/17/78）、
 │                             MapFileImporter（TXT/CSV，XML/SINF 显式未接入）、IJobRepository（CRUD + 名称唯一）、
 │                             SubRecipeModels/SubRecipeWizard/SubRecipeRepository（T-005 字段、T-042 七步、B-25 门禁、BR-19 可重入）
+├─ Alignment/                 H03 对位域：TemplateMatchingEngine（B-08 唯一实现）、SyntheticFovImage、
+│                             LightCalibrationAnalyzer、MarkAlignmentService、ReferenceImagePlanner、MapGridState
+├─ Inspection/                H04 检测配置域：IRoiScanAreaStore + RoiScanAreaStore（B-01/B-02 唯一数据源、
+│                             AC-P2-03）、InspectionModels（ROI/扫描区域/抽检/可扩展参数/T-014）、
+│                             InspectionValidator（F-3.2.2-75 / BR-37~41）
 ├─ Run/                       H01 运行域唯一 Owner：WaferRunController（BR-06/08/09/10/14/74）、
+│                             DefectRecord（B-23 全系统唯一缺陷模型，H01/H04/H08 共用）、
 │                             ManualLoadSequencer（BR-05）、JobCatalog（BR-10）、RunModels、LogFormat（BR-18）
 ├─ Simulation/                确定性模拟算法 ISimulationData
 └─ DependencyInjection/       AddWaferInspectCore()
@@ -92,7 +100,8 @@ src/WaferInspect.Core/
 设备命令透传、统一事件、默认拒绝鉴权、统一角色模型展开、认证成败与登录门禁（含 `BR-76` 初始账号断言）、
 运行状态机（`RunControllerTests`：晶圆内计数/结晶提交/暂停恢复/结批/BR-74 拦截等 12 项）与
 手动装载序列 / Job 目录（`ManualLoadAndJobCatalogTests` 5 项）、Job 仓库与 Map 导入
-（`JobRepositoryTests` 19 项）、子配方向导（`SubRecipeWizardTests` 16 项）、H03 对位（`AlignmentEngineTests` 26 项），共 112 项；
+（`JobRepositoryTests` 19 项）、子配方向导（`SubRecipeWizardTests` 16 项）、H03 对位（`AlignmentEngineTests` 26 项）、
+H04 ROI / 扫描区域唯一数据源（`RoiScanAreaTests` 27 项，覆盖 BR-35~42、AC-P2-03/05、AC-H04-01~04），共 139 项；
 `BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；
@@ -180,6 +189,13 @@ P1 特殊边界（0.6.0）：检测任务（H01）界面功能全量迁移完成
 禁止下发任何指令，界面动作一律以「[搁置] 未下发」日志与提示标注。
 `T-029` 未闭环前不得注册虚构的生产 `IDeviceGateway`。
 
+P2 特殊边界（1.0.0，H04 已交付）：ROI 与扫描区域的**唯一 Owner** 是 `Core/Inspection/RoiScanAreaStore`
+（B-01/B-02、AC-P2-03）；向导步骤 5/6、缺陷分析页、参数验证页一律通过 `IRoiScanAreaStore` 读写，
+禁止任何界面自建副本或直接写 `SubRecipe.RoiZones` / `ScanArea` / `Inspection`。
+关闭参数页自动保存（BR-40）由 `ParameterValidationDialog.Closing → SaveOnClose()` 统一触发，
+不得改成「点保存才保存」或「关闭丢弃」。设备侧预扫描 / 图片采集 / AI 推理继续搁置（T-029/T-035），
+结果必须标注「确定性离线演算」。
+
 WPF 实现约定（0.6.0 起，源于实测踩坑）：
 - **禁用 `ContentControl` + `ContentTemplate` 渲染列表**：Content 为 null 时模板不实例化，
   列表整体空白；集合一律内联 `ItemsControl` / `DataGrid`；
@@ -187,4 +203,12 @@ WPF 实现约定（0.6.0 起，源于实测踩坑）：
   错误的 DataContext 上解析失败导致常显，需用外层 Grid 分担 Visibility；
 - 所有可交互控件必须带 `AutomationProperties.AutomationId`（供 UIAutomation / Smoke 驱动）；
   RadioButton 导航项依赖「选中态 `IsSelected` 变化 → Navigate」绑定，程序化 Select 与
-  鼠标点击等价，勿再新增仅依赖 Command 的导航路径。
+  鼠标点击等价，勿再新增仅依赖 Command 的导航路径；
+- **`<Run Text="{Binding ...}"/>` 必须显式写 `Mode=OneWay`**（1.0.0 实测踩坑）：`Run.Text`
+  默认 TwoWay，绑定只读属性会抛 `XamlParseException`，且异常在布局阶段反复抛出；
+- **界面异常处理器不得同步弹 MessageBox**（1.0.0 实测踩坑）：同步 `MessageBox.Show` 开启嵌套
+  消息循环，同一异常反复进入 `DispatcherUnhandledException` 最终导致 0xC00000FD 栈溢出；
+  当前实现为「先写 `ui-error.log` + `Dispatcher.BeginInvoke` 异步弹窗」；
+- H04 共享 Map 画布（`Views/MapRegionCanvas`）用单张 `WriteableBitmap` 绘制 20×20 Die 网格，
+  禁止把 400 个子元素塞进可视化树 / UIA 树；`State="{Binding Map}"` 与
+  `IMapRegionCanvasHost.AddRegion/ToggleDie` 是唯一的输入与输出契约。
