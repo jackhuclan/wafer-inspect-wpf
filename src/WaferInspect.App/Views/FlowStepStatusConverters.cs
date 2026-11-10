@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using WaferInspectHMI.Services;
 using WaferInspectHMI.ViewModels.Modules;
 
 namespace WaferInspectHMI.Views;
@@ -44,6 +45,30 @@ public sealed class BoolToCnConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         => value is true ? "是" : "否";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>SinfExporterKind → 中文标签（内部 CSV 默认 / 工业字节流待确认）。</summary>
+public sealed class SinfKindToTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is SinfExporterKind k ? k switch
+        {
+            SinfExporterKind.Industrial => "工业 Sinf 字节流（T-037 待确认）",
+            _ => "内部 CSV（诚实，默认）"
+        } : "内部 CSV（诚实，默认）";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>SinfExporterKind → 是否可选（工业 Sinf 因 T-037 待确认而禁用，不伪造）。</summary>
+public sealed class SinfKindToEnabledConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is SinfExporterKind k && k == SinfExporterKind.Industrial ? false : true;
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

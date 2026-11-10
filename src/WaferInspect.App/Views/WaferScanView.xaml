@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:WaferInspectHMI.ViewModels.Modules"
              xmlns:views="clr-namespace:WaferInspectHMI.Views"
+             xmlns:services="clr-namespace:WaferInspectHMI.Services"
              FontFamily="Segoe UI, Microsoft YaHei" FontSize="13">
     <UserControl.Resources>
         <Style x:Key="FieldLabel" TargetType="TextBlock">
@@ -33,6 +34,8 @@
         <views:FlowStepStatusToTextConverter x:Key="FlowStepStatusToText"/>
         <views:FlowStepStatusToBrushConverter x:Key="FlowStepStatusToBrush"/>
         <views:BoolToCnConverter x:Key="BoolToCn"/>
+        <views:SinfKindToTextConverter x:Key="SinfKindToText"/>
+        <views:SinfKindToEnabledConverter x:Key="SinfKindToEnabled"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -130,9 +133,29 @@
                             <Button Content="清除 Ink" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
                                     Command="{Binding ClearInkCommand}" AutomationProperties.AutomationId="BtnScanClearInk"
                                     ToolTip="清除全部 Ink 墨点标记"/>
-                            <Button Content="导出 Sinf（内部）" Style="{StaticResource PrimaryButton}" Margin="0,0,6,6"
-                                    Command="{Binding ExportSinfCommand}" AutomationProperties.AutomationId="BtnScanExportSinf"
-                                    ToolTip="导出自洽内部 Map 表示（非工业 Sinf 字节流，T-037 待确认）"/>
+                            <StackPanel Margin="0,0,6,6" VerticalAlignment="Bottom">
+                                <TextBlock Text="Sinf 导出格式（T-037）" Style="{StaticResource FieldLabel}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox Width="180" Style="{StaticResource FieldCombo}" ItemsSource="{Binding SinfExporterOptions}"
+                                              SelectedItem="{Binding SelectedSinfExporterKind, Mode=TwoWay}"
+                                              AutomationProperties.AutomationId="ComboSinfFormat"
+                                              ToolTip="工业 Sinf 字节流因 T-037 规范待确认暂不可选；实现 IndustrialSinfExporter.Export 后启用">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type services:SinfExporterKind}">
+                                                <TextBlock Text="{Binding Converter={StaticResource SinfKindToText}}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem">
+                                                <Setter Property="IsEnabled" Value="{Binding Converter={StaticResource SinfKindToEnabled}}"/>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                    </ComboBox>
+                                    <Button Content="导出 Sinf" Style="{StaticResource PrimaryButton}" Margin="6,0,0,0"
+                                            Command="{Binding ExportSinfCommand}" AutomationProperties.AutomationId="BtnScanExportSinf"
+                                            ToolTip="经可插拔 ISinfExporter 导出：默认内部 CSV（非工业字节流，T-037 待确认）"/>
+                                </StackPanel>
+                            </StackPanel>
                         </WrapPanel>
                         <WrapPanel>
                             <StackPanel Margin="0,0,6,0">

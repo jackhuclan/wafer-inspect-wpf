@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using WaferInspect.Core.Alignment;
 using WaferInspect.Core.Maps;
 using WaferInspectHMI.Models;
+using WaferInspectHMI.Services;
 
 namespace WaferInspectHMI.ViewModels.Modules;
 
@@ -24,6 +25,8 @@ public sealed partial class WaferScanViewModel : ObservableBase
     private readonly IH05DialogService _dialogs;
     private readonly ReferenceImagePlanner _planner = new();
     private readonly OfflineScanExecutor _executor = new(new TemplateMatchingEngine(), new MarkAlignmentService());
+    private readonly InternalCsvSinfExporter _sinfCsv = new();
+    private readonly IndustrialSinfExporter _sinfIndustrial = new();
     private string _currentMapTypeId = string.Empty;
 
     public WaferScanViewModel(IMapTypeCatalog catalog, IH05DialogService dialogs)
@@ -77,7 +80,19 @@ public sealed partial class WaferScanViewModel : ObservableBase
         "[诚实搁置] 步骤 3~9 依赖 H03 对位 / H06 扫描执行（T-029 / T-035）：选模板 / 矩形 ROI / 锁定 / 灰度+Die 匹配 / 降分重试 / 填充未匹配，" +
         "均仅登记不伪造设备/算法结果（E-08 / E-10）。" +
         "[P5·已交付] H03 参考图像（B-09）Golden Die 规划与落格已在本地真实落地：步骤 5 的搜索圆规划点位现可由 ReferenceImagePlanner 本地生成并标记「规划完成（Planned）」，真实搜索仍依赖 B-10/T-029 搁置。" +
-        "[P6·已交付] H06 扫描执行/对位离线演算沙盒已落地：步骤 7（灰度模板+Die 匹配）与步骤 8（降分重试）现可由 OfflineScanExecutor 在合成 FOV 上真实跑通 B-08 引擎与 H03 对位并标记「规划完成（Planned）」；步骤 3/4/6/9 仍需真实设备采集/ROI/锁定/填充（T-029/T-035），维持诚实搁置。";
+        "[P6·已交付] H06 扫描执行/对位离线演算沙盒已落地：步骤 7（灰度模板+Die 匹配）与步骤 8（降分重试）现可由 OfflineScanExecutor 在合成 FOV 上真实跑通 B-08 引擎与 H03 对位并标记「规划完成（Planned）」；步骤 3/4/6/9 仍需真实设备采集/ROI/锁定/填充（T-029/T-035），维持诚实搁置。" +
+        "[P7·已交付] Sinf 导出已抽象为可插拔 ISinfExporter：默认 InternalCsv（诚实内部 CSV，非工业字节流，T-037 待确认）；Industrial 为预留实现位，规范到位即 drop-in 替换，绝不伪造（E-08/E-10）。";
+
+    /// <summary>当前选中的 Sinf 导出格式（BR-50 / B-12）。默认内部 CSV；工业字节流因 T-037 待确认当前不可选。</summary>
+    [ObservableProperty] private SinfExporterKind _selectedSinfExporterKind = SinfExporterKind.InternalCsv;
+
+    /// <summary>可选导出格式列表（含预留的工业字节流项，UI 依 T-037 状态禁用）。</summary>
+    public ObservableCollection<SinfExporterKind> SinfExporterOptions { get; } =
+        new() { SinfExporterKind.InternalCsv, SinfExporterKind.Industrial };
+
+    /// <summary>按当前选择解析活动导出器（可插拔骨架的核心 seam）。</summary>
+    private ISinfExporter ActiveSinfExporter =>
+        SelectedSinfExporterKind == SinfExporterKind.Industrial ? _sinfIndustrial : _sinfCsv;
 
     partial void OnSelectedTypeChanged(MapTypeRow value) => LoadBrushBins();
 
@@ -612,9 +627,9 @@ public sealed partial class WaferScanViewModel : ObservableBase
     private void ExportSinf() => TryExportSinf();
 
     /// <summary>
-    /// BR-50 / B-12：Sinf 导出。T-037 格式规范待确认，故生成**自洽的内部 Map 导出**
-    /// （Die 矩阵 / Bin 代码 / 坐标 / Ink·ReferenceDie 标记），文件头明确标注「非工业 Sinf 字节流」，
-    /// 不伪造工业格式（E-08 / E-10），与 H08 报表内部 CSV 先例一致。
+    /// BR-50 / B-12：Sinf 导出。经可插拔 <see cref="ISinfExporter"/> 委托序列化：
+    /// 当前默认 InternalCsv（诚实内部 CSV，非工业字节流，T-037 待确认）；
+    /// 工业字节流实现（Industrial）预留，规范到位即 drop-in 替换，不伪造（E-08 / E-10）。
     /// </summary>
     private bool TryExportSinf()
     {
@@ -623,37 +638,27 @@ public sealed partial class WaferScanViewModel : ObservableBase
             StatusText = "导出 Sinf 失败：请先生成 Map 图（BR-45）";
             return false;
         }
-        string suggested = $"wafer_{(SelectedType?.Id ?? "map")}_v{_map.RefreshVersion}.sinf.internal.csv";
+        var ctx = new SinfExportContext(_map, SelectedType?.Id, SelectedType?.Name, CreateMode, WaferSize, ExpandFilm);
+        string suggested = ActiveSinfExporter.SuggestedFileName(ctx);
         string path = _dialogs.PickExportPath(suggested);
         if (string.IsNullOrEmpty(path))
         {
             StatusText = "已取消 Sinf 导出（未生成任何文件）";
             return false;
         }
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("# Wafer Map 内部导出（诚实表示，非工业 Sinf 字节流）");
-        sb.AppendLine("# 说明：T-037 Sinf 文件格式规范待确认；本文件为自洽的 Map 数据导出，供工程校验 / 迁移比对；不得作为工业 Sinf 字节流使用");
-        sb.AppendLine($"# 生成时间,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine($"# 图谱类型,{SelectedType?.Id ?? ""},{SelectedType?.Name ?? ""}");
-        sb.AppendLine($"# 创建方式,{CreateMode}");
-        sb.AppendLine($"# 晶圆尺寸(寸),{WaferSize}");
-        sb.AppendLine($"# 扩膜,{ExpandFilm}");
-        sb.AppendLine($"# 行数,{_map.Rows}");
-        sb.AppendLine($"# 列数,{_map.Columns}");
-        sb.AppendLine($"# 墨点标记数,{_map.InkedCount}");
-        sb.AppendLine("列,行,坐标,BinKind,BinCode,等级,颜色,墨点,标签");
-        foreach (var c in _map.Cells)
-            sb.AppendLine($"{c.Column},{c.Row},{c.Coordinate},{c.Kind},{c.Code},{c.Level},{c.ColorHex},{(c.Inked ? 1 : 0)},{c.Label}");
         try
         {
-            System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
+            ActiveSinfExporter.Export(ctx, path);
         }
         catch (Exception ex)
         {
-            StatusText = $"Sinf 内部导出写入失败：{ex.Message}";
+            StatusText = $"Sinf 导出失败：{ex.Message}";
             return false;
         }
-        StatusText = $"已导出 Sinf 内部表示（诚实）：{System.IO.Path.GetFileName(path)}，{_map.Cells.Count} 颗 Die；非工业 Sinf 字节流（T-037 待确认）";
+        if (ActiveSinfExporter.IsIndustrial)
+            StatusText = $"已导出工业 Sinf 字节流（T-037）：{System.IO.Path.GetFileName(path)}，{_map.Cells.Count} 颗 Die";
+        else
+            StatusText = $"已导出 Sinf 内部表示（诚实）：{System.IO.Path.GetFileName(path)}，{_map.Cells.Count} 颗 Die；非工业 Sinf 字节流（T-037 待确认）";
         return true;
     }
 }
