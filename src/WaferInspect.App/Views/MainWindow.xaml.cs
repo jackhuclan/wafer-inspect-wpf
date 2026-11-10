@@ -1,9 +1,11 @@
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using WaferInspectHMI.Models;
 using WaferInspectHMI.ViewModels;
@@ -30,6 +32,72 @@ public partial class MainWindow : Window
     {
         _vm.WindowActionRequested -= OnWindowAction;
         base.OnClosed(e);
+    }
+
+    /* ---------------- 无边框窗口最大化钳制：状态栏不被任务栏遮挡 ----------------
+     * WindowStyle=None 的窗口最大化时默认铺满整块显示器，底部 28px 状态栏会被
+     * Windows 任务栏盖住。通过 WM_GETMINMAXINFO 把最大化范围钳制为所在显示器的
+     * 工作区（WorkArea，已扣除任务栏），多显示器下按窗口所在屏计算。 */
+    private const int WM_GETMINMAXINFO = 0x0024;
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X, Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public int dwFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        if (PresentationSource.FromVisual(this) is HwndSource source)
+            source.AddHook(WndProc);
+    }
+
+    private static IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg != WM_GETMINMAXINFO) return IntPtr.Zero;
+
+        var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+        IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info))
+        {
+            // 最大化位置与尺寸钳制为工作区：多显示器下 rcWork 为屏幕坐标，需换算回窗口相对坐标。
+            mmi.ptMaxPosition.X = info.rcWork.Left - info.rcMonitor.Left;
+            mmi.ptMaxPosition.Y = info.rcWork.Top - info.rcMonitor.Top;
+            mmi.ptMaxSize.X = info.rcWork.Right - info.rcWork.Left;
+            mmi.ptMaxSize.Y = info.rcWork.Bottom - info.rcWork.Top;
+        }
+        Marshal.StructureToPtr(mmi, lParam, true);
+        handled = true;
+        return IntPtr.Zero;
     }
 
     /* ---------------- 标题栏：拖拽 / 双击 / 窗口三态命令 ---------------- */

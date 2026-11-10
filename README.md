@@ -50,7 +50,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（0.6.0）
+## 架构（0.6.1）
 
 | 关注点 | 实现 |
 |---|---|

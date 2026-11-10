@@ -1,7 +1,8 @@
 <Window x:Class="WaferInspectHMI.Views.WaferConfirmDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="确认晶圆信息" Width="440" Height="290"
+        Title="确认晶圆信息" Width="440" MinHeight="280"
+        SizeToContent="Height"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         Background="{StaticResource Surface}" FontFamily="Microsoft YaHei UI"
         ShowInTaskbar="False">
