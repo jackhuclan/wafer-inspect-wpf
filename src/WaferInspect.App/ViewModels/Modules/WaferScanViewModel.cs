@@ -23,6 +23,7 @@ public sealed partial class WaferScanViewModel : ObservableBase
     private readonly MapGridModel _map = new();
     private readonly IH05DialogService _dialogs;
     private readonly ReferenceImagePlanner _planner = new();
+    private readonly OfflineScanExecutor _executor = new(new TemplateMatchingEngine(), new MarkAlignmentService());
     private string _currentMapTypeId = string.Empty;
 
     public WaferScanViewModel(IMapTypeCatalog catalog, IH05DialogService dialogs)
@@ -75,7 +76,8 @@ public sealed partial class WaferScanViewModel : ObservableBase
         "Sinf 导出为诚实内部表示（非工业字节流，T-037 待确认）。" +
         "[诚实搁置] 步骤 3~9 依赖 H03 对位 / H06 扫描执行（T-029 / T-035）：选模板 / 矩形 ROI / 锁定 / 灰度+Die 匹配 / 降分重试 / 填充未匹配，" +
         "均仅登记不伪造设备/算法结果（E-08 / E-10）。" +
-        "[P5·已交付] H03 参考图像（B-09）Golden Die 规划与落格已在本地真实落地：步骤 5 的搜索圆规划点位现可由 ReferenceImagePlanner 本地生成并标记「规划完成（Planned）」，真实搜索仍依赖 B-10/T-029 搁置。";
+        "[P5·已交付] H03 参考图像（B-09）Golden Die 规划与落格已在本地真实落地：步骤 5 的搜索圆规划点位现可由 ReferenceImagePlanner 本地生成并标记「规划完成（Planned）」，真实搜索仍依赖 B-10/T-029 搁置。" +
+        "[P6·已交付] H06 扫描执行/对位离线演算沙盒已落地：步骤 7（灰度模板+Die 匹配）与步骤 8（降分重试）现可由 OfflineScanExecutor 在合成 FOV 上真实跑通 B-08 引擎与 H03 对位并标记「规划完成（Planned）」；步骤 3/4/6/9 仍需真实设备采集/ROI/锁定/填充（T-029/T-035），维持诚实搁置。";
 
     partial void OnSelectedTypeChanged(MapTypeRow value) => LoadBrushBins();
 
@@ -234,6 +236,22 @@ public sealed partial class WaferScanViewModel : ObservableBase
     /// <summary>规划出的参考 Die 坐标文本（前若干项），供 UI 列表展示。</summary>
     [ObservableProperty] private ObservableCollection<string> _goldenReferenceDieTexts = new();
 
+    /* ---------------- H06 扫描执行 / 对位（离线演算沙盒，T-029/T-035 诚实搁置，P6 1.8.0） ----------------
+       真实相机采集 / AI 推理属 H06（设备连接 T-029/T-035 搁置）；本段仅在合成 FOV 上真实跑 B-08 引擎与
+       H03 对位（确定性离线演算），不接入生产 IDeviceGateway、不伪造设备结果（E-08/E-10）。 */
+
+    /// <summary>H06 离线扫描匹配阈值（BR-24，0~100，高于才判通过）。</summary>
+    [ObservableProperty] private double _matchThreshold = 75;
+
+    /// <summary>最近一次离线扫描演算报告（H06，<see cref="OfflineScanReport.IsOffline"/> 恒 true）。</summary>
+    [ObservableProperty] private OfflineScanReport _lastScanReport;
+
+    /// <summary>是否已运行过离线扫描（启用降分重试 / 对位展示）。</summary>
+    [ObservableProperty] private bool _hasScanReport;
+
+    /// <summary>离线扫描演算结果文本（诚实标注确定性离线演算）。</summary>
+    [ObservableProperty] private string _scanReportText = "尚未运行离线扫描演算（H06，T-029/T-035 诚实搁置）";
+
     private void InitFlowSteps()
     {
         FlowSteps.Add(new ScanFlowStep(1, "选创建方式", "H05", true));
@@ -242,8 +260,8 @@ public sealed partial class WaferScanViewModel : ObservableBase
         FlowSteps.Add(new ScanFlowStep(4, "调整矩形 ROI", "H03", false, "矩形 ROI 依赖 H03 对位（T-029）"));
         FlowSteps.Add(new ScanFlowStep(5, "显示并调整匹配搜索圆", "H03", false, "搜索圆规划点位现可由 H03 参考图像在本地生成（B-09，P5）；真实搜索仍依赖 H03 对位（B-10/T-029）搁置"));
         FlowSteps.Add(new ScanFlowStep(6, "锁定", "H03", false, "锁定依赖 H03 对位（T-029）"));
-        FlowSteps.Add(new ScanFlowStep(7, "灰度模板 + Die 匹配", "H03/H06", false, "灰度模板与 Die 匹配依赖 H03/H06 扫描执行（T-029/T-035）"));
-        FlowSteps.Add(new ScanFlowStep(8, "降低匹配分数重试", "H03", false, "匹配分数重试依赖 H03 对位（T-035）"));
+        FlowSteps.Add(new ScanFlowStep(7, "灰度模板 + Die 匹配", "H03/H06", false, "离线匹配演算已由 H06 离线沙盒在合成 FOV 上真实跑通（B-08 唯一引擎，P6）；真实设备采集 / 搜索仍依赖 H03/H06（T-029/T-035）搁置"));
+        FlowSteps.Add(new ScanFlowStep(8, "降低匹配分数重试", "H03/H06", false, "离线降分重试已由 H06 离线沙盒真实重跑 B-08 引擎（P6）；真实 AI 推理仍依赖 H03（T-035）搁置"));
         FlowSteps.Add(new ScanFlowStep(9, "填充未匹配 Die / 多建模板", "H03/H06", false, "填充未匹配依赖 H03/H06（T-029/T-035）"));
         FlowSteps.Add(new ScanFlowStep(10, "Die 笔刷手动改 Bin", "H05", true));
         FlowSteps.Add(new ScanFlowStep(11, "Ink 笔刷改未匹配 Die / 设 ReferenceDie", "H05", true, "", "BR-49：Ink 墨点为本地元数据，ReferenceDie 已是 B-11 笔刷"));
@@ -297,6 +315,41 @@ public sealed partial class WaferScanViewModel : ObservableBase
                 else
                 {
                     StatusText = $"[规划未完成] 步骤 {step.StepNo}「{step.Title}」需先生成 Map 图（BR-45）后再规划（E-08/E-10）";
+                    step.Status = FlowStepStatus.Deferred;
+                }
+                break;
+            case 7:
+                try
+                {
+                    RunOfflineScanCore();
+                    MarkStepPlanned(step);
+                }
+                catch (Exception ex)
+                {
+                    StatusText = $"[离线演算失败] 步骤 {step.StepNo}：{ex.Message}";
+                    step.Status = FlowStepStatus.Deferred;
+                }
+                break;
+            case 8:
+                if (!HasScanReport || LastScanReport == null)
+                {
+                    StatusText = $"[依赖未满足] 步骤 {step.StepNo} 需先完成步骤 7 离线扫描（E-08/E-10 不伪造）";
+                    step.Status = FlowStepStatus.Deferred;
+                    break;
+                }
+                try
+                {
+                    double lower = Math.Max(0, MatchThreshold - 10);
+                    var retry = _executor.RetryWithLowerThreshold(LastScanReport, lower);
+                    MatchThreshold = lower;
+                    LastScanReport = retry;
+                    HasScanReport = true;
+                    ScanReportText = $"[离线演算·降分重试] 阈值降至 {lower:F0}，匹配分数 {retry.MatchScore}（{(retry.MatchPassed ? "通过" : "仍未通过")}）；FOV 不变（合成，非设备采集）";
+                    MarkStepPlanned(step);
+                }
+                catch (Exception ex)
+                {
+                    StatusText = $"[离线降分重试失败] 步骤 {step.StepNo}：{ex.Message}";
                     step.Status = FlowStepStatus.Deferred;
                 }
                 break;
@@ -465,6 +518,84 @@ public sealed partial class WaferScanViewModel : ObservableBase
         }
         GoldenPlan = _planner.MarkManualAdjusted(GoldenPlan);
         StatusText = "已标记 FOV 图谱手动调整（F-3.2.2-64/66）：保留已规划点位，待人工微调 Golden 效果";
+    }
+
+    /* ---------------- H06 扫描执行 / 对位（离线演算沙盒，P6 1.8.0） ---------------- */
+
+    /// <summary>
+    /// 运行一次离线扫描演算：合成 FOV 上真实跑 B-08 引擎算匹配分、H03 对位算平台坐标（确定性、可复现）。
+    /// 需在已生成 Map 图后调用（依赖 cols/rows）；真实设备采集 / AI 推理属 T-029/T-035 搁置，不伪造（E-08/E-10）。
+    /// </summary>
+    private OfflineScanReport RunOfflineScanCore()
+    {
+        if (_map.Cells.Count == 0)
+            throw new InvalidOperationException("请先生成 Map 图（BR-45）");
+        if (MatchThreshold is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(MatchThreshold), "匹配阈值须在 0~100 之间（BR-24）");
+
+        var report = _executor.Execute(_map.Columns, _map.Rows, MatchThreshold);
+        LastScanReport = report;
+        HasScanReport = true;
+        ScanReportText = $"[离线演算] 匹配分数 {report.MatchScore}（阈值 {report.MatchThreshold:F0}）{(report.MatchPassed ? "通过" : "未通过")}；" +
+                         $"参考 Die R{report.ReferenceRow}·C{report.ReferenceColumn} → 平台 ({report.PlatformX:F2}, {report.PlatformY:F2}) mm；" +
+                         $"FOV 种子 {report.FovSeed}（合成，非设备采集）";
+        return report;
+    }
+
+    /// <summary>步骤 7 入口：运行离线扫描演算（合成 FOV + B-08 引擎 + H03 对位）。</summary>
+    [RelayCommand]
+    private void RunOfflineScan()
+    {
+        try
+        {
+            RunOfflineScanCore();
+            StatusText = ScanReportText;
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"离线扫描演算失败：{ex.Message}";
+        }
+    }
+
+    /// <summary>步骤 8 入口：降低匹配分数阈值后在同一合成 FOV 上真实重跑 B-08 引擎。</summary>
+    [RelayCommand]
+    private void RetryLowerScore()
+    {
+        if (!HasScanReport || LastScanReport == null)
+        {
+            StatusText = "请先运行离线扫描，再降低分数重试（步骤 8）";
+            return;
+        }
+        try
+        {
+            double lower = Math.Max(0, MatchThreshold - 10);
+            var retry = _executor.RetryWithLowerThreshold(LastScanReport, lower);
+            MatchThreshold = lower;
+            LastScanReport = retry;
+            HasScanReport = true;
+            ScanReportText = $"[离线演算·降分重试] 阈值降至 {lower:F0}，匹配分数 {retry.MatchScore}（{(retry.MatchPassed ? "通过" : "仍未通过")}）；FOV 不变（合成，非设备）";
+            StatusText = ScanReportText;
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"离线降分重试失败：{ex.Message}";
+        }
+    }
+
+    /// <summary>离线对位：复用 H03 MarkAlignmentService 解参考 Die 的平台坐标（确定性离线演算）。</summary>
+    [RelayCommand]
+    private void RunOfflineAlign()
+    {
+        try
+        {
+            var report = RunOfflineScanCore();
+            ScanReportText = $"[离线对位] 参考 Die R{report.ReferenceRow}·C{report.ReferenceColumn} → 平台 ({report.PlatformX:F2}, {report.PlatformY:F2}) mm（H03 DieToPlatform，离线演算）";
+            StatusText = ScanReportText;
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"离线对位失败：{ex.Message}";
+        }
     }
 
     [RelayCommand]

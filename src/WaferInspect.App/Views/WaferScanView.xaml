@@ -43,6 +43,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- 扫描参数区（F-3.7.3-01/06/09/15，BR-46/47/48） -->
@@ -381,6 +382,81 @@
 
                     <TextBlock Text="诚实边界：真实参考图像采集 / 拟合属 H06（设备连接 T-029 搁置）。本面板仅在本地确定性规划参考 Die 与四色分类、并落格为 RD，不做任何图像采集 / 拟合，不伪造设备结果（E-08 / E-10）。"
                                Foreground="{StaticResource Warn}" FontSize="11.5" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- H06 扫描执行 / 对位（离线演算沙盒，T-029/T-035 诚实搁置，P6 1.8.0）：合成 FOV + B-08 引擎 + H03 对位，全部为确定性离线演算 -->
+            <Border Grid.Row="5" Style="{StaticResource Card}" Padding="14,10" Margin="0,12,0,0">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock Text="H06 扫描执行 / 对位（离线演算，T-029/T-035 诚实搁置）" Style="{StaticResource PanelTitle}" Margin="0,0,12,0"/>
+                        <TextBlock Text="合成 FOV + B-08 引擎 + H03 对位，确定性离线演算" Style="{StaticResource MetaText}"
+                                   HorizontalAlignment="Right" TextWrapping="Wrap"/>
+                    </DockPanel>
+
+                    <WrapPanel Margin="0,0,0,10">
+                        <StackPanel Style="{StaticResource FieldItem}">
+                            <TextBlock Text="匹配阈值（BR-24，0~100）" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Width="120" Style="{StaticResource FieldBox}" Text="{Binding MatchThreshold, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.AutomationId="FieldMatchThreshold"/>
+                        </StackPanel>
+                        <Button Content="运行离线扫描" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding RunOfflineScanCommand}" AutomationProperties.AutomationId="BtnRunOfflineScan"
+                                ToolTip="合成 FOV 上真实跑 B-08 匹配引擎与 H03 对位（离线演算）"/>
+                        <Button Content="降低分数重试" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding RetryLowerScoreCommand}" AutomationProperties.AutomationId="BtnRetryLowerScore"
+                                ToolTip="步骤 8：同一合成 FOV 上用更低阈值重跑 B-08 引擎"/>
+                        <Button Content="离线对位" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding RunOfflineAlignCommand}" AutomationProperties.AutomationId="BtnRunOfflineAlign"
+                                ToolTip="H03 DieToPlatform 解参考 Die 平台坐标（离线演算）"/>
+                    </WrapPanel>
+
+                    <Border Background="{StaticResource Surface3}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="离线演算结果（H06，非真实设备）" Style="{StaticResource PanelTitle}" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="是否离线：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding LastScanReport.IsOffline, Converter={StaticResource BoolToCn}, FallbackValue=否}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="匹配分数：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding LastScanReport.MatchScore, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="是否通过：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding LastScanReport.MatchPassed, Converter={StaticResource BoolToCn}, FallbackValue=否}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="匹配阈值：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding LastScanReport.MatchThreshold, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="平台 X (mm)：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding LastScanReport.PlatformX, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="平台 Y (mm)：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding LastScanReport.PlatformY, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="{Binding ScanReportText}" Style="{StaticResource KeyText}" Margin="0,8,0,0"
+                                       TextWrapping="Wrap" AutomationProperties.AutomationId="ScanOfflineReport"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource Surface3}" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                        <TextBlock Text="诚实边界：本面板运行确定性离线演算——合成 FOV（SyntheticFovImage）+ B-08 唯一匹配引擎 + H03 MarkAlignmentService。未接入真实相机采集 / AI 推理（T-029/T-035 搁置），绝不注册生产 IDeviceGateway、绝不伪造设备扫描结果（E-08/E-10）。真实设备扫描需待 T-029/T-035 闭环后替换 FOV 来源。"
+                                   Foreground="{StaticResource Warn}" FontSize="11.5" TextWrapping="Wrap"/>
+                    </Border>
                 </StackPanel>
             </Border>
         </Grid>

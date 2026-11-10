@@ -77,11 +77,13 @@ public sealed class WaferScanFlowTests
 
         vm.RunFlowCommand.Execute(null);
 
-        // 依赖 H03/H06 的步骤（3/4/6/7/8/9）仍诚实搁置；步骤 5（搜索圆规划）现可由 H03 参考图像
-        // 在本地规划 → 标记为 Planned（P5，B-09），不再是 Deferred。
-        Assert.All(vm.FlowSteps.Where(s => !s.Deliverable && s.StepNo != 5),
+        // 依赖 H03/H06 的步骤仍诚实搁置：3/4/6/9 需真实设备采集/ROI/锁定/填充（T-029/T-035）→ Deferred；
+        // 步骤 5（搜索圆规划，P5·B-09）与步骤 7/8（离线匹配演算，P6·H06）现可由本地确定性能力完成 → Planned。
+        Assert.All(vm.FlowSteps.Where(s => !s.Deliverable && s.StepNo is not (5 or 7 or 8)),
             s => Assert.Equal(FlowStepStatus.Deferred, s.Status));
         Assert.Equal(FlowStepStatus.Planned, vm.FlowSteps.First(s => s.StepNo == 5).Status);
+        Assert.Equal(FlowStepStatus.Planned, vm.FlowSteps.First(s => s.StepNo == 7).Status);
+        Assert.Equal(FlowStepStatus.Planned, vm.FlowSteps.First(s => s.StepNo == 8).Status);
         Assert.Contains("诚实搁置", vm.FlowStatusText);
     }
 
