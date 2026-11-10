@@ -4,6 +4,7 @@
 
     <local:BoolToVisibilityConverter x:Key="BoolVis"/>
     <local:BoolToCollapsedConverter x:Key="BoolCollapsed"/>
+    <local:NonEmptyToVisibilityConverter x:Key="NonEmptyVis"/>
 
     <!-- ============ 语义色板：深色 chrome + 浅色数据画布 ============ -->
     <SolidColorBrush x:Key="Chrome" Color="#0D1826"/>

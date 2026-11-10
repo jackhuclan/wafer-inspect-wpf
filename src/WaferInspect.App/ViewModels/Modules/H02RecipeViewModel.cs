@@ -10,10 +10,10 @@ using WaferInspect.Core.Recipes;
 namespace WaferInspectHMI.ViewModels.Modules;
 
 /// <summary>
-/// H02 配方与 Job 管理（P2）：Job 列表 CRUD + 公共参数表单（`F-3.2.1-01~29`）。
+/// H02 配方与 Job 管理（P2）：Job 列表 CRUD + 公共参数表单（`F-3.2.1-01~29`）
+/// + 子配方七步向导入口（`F-3.2.2-*`，T-005/T-042 已闭环，向导编排见 <see cref="SubRecipeWizardViewModel"/>）。
 /// 规则口径：必填与 BR-15/16/17/78 全部由 <see cref="JobValidator"/> / <see cref="MapFileImporter"/> 判定，
 /// ViewModel 只做「取表单值 → 组装 JobDefinition → 转发结果 → 呈现错误」，不复制校验逻辑。
-/// 子 Recipe 分步向导（`F-3.2.2-*`）依赖 `T-005`/`T-042`，本轮不实现，入口保留在页头说明。
 /// </summary>
 public sealed partial class H02RecipeViewModel : ModuleViewModelBase
 {
@@ -320,6 +320,13 @@ public sealed partial class H02RecipeViewModel : ModuleViewModelBase
     }
 
     private bool HasSelection => SelectedJob != null;
+
+    /// <summary>子配方向导入口（F-3.2.2）：向导针对**当前选中的 Job** 创建/编辑子配方。</summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void OpenSubRecipeWizard()
+    {
+        _dialogs.ShowSubRecipeWizard(SelectedJob.JobId);
+    }
 
     /* ---------------- 命令：Map 文件（F-3.2.1-11/17/18） ---------------- */
 

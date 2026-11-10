@@ -43,6 +43,12 @@ public partial class App : Application
                     services.AddSingleton<INavGroupFactory, NavGroupFactory>();
                     services.AddSingleton<IH01DialogService, H01DialogService>();
                     services.AddSingleton<IH02DialogService, H02DialogService>();
+                    // 子配方向导（F-3.2.2）：VM 按父 Job 每次新建，窗口由工厂组装，对话框服务只负责打开。
+                    services.AddTransient<Func<string, SubRecipeWizardViewModel>>(provider => parentJobId =>
+                        ActivatorUtilities.CreateInstance<SubRecipeWizardViewModel>(provider, parentJobId));
+                    services.AddTransient<Func<string, SubRecipeWizardDialog>>(provider => parentJobId =>
+                        new SubRecipeWizardDialog(
+                            provider.GetRequiredService<Func<string, SubRecipeWizardViewModel>>()(parentJobId)));
                     services.AddSingleton<H01RunViewModel>();
                     services.AddSingleton<ModuleViewModelBase>(provider => provider.GetRequiredService<H01RunViewModel>());
                     services.AddSingleton<H02RecipeViewModel>();

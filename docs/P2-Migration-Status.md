@@ -1,16 +1,17 @@
 # P2 迁移状态 · 配方、对位与算法
 
 > 对应 `docs/PRD-Blade-Migration.md` §8.2 `P2`。本文件只记录**事实状态**，不虚报完成度（E-10）。
-> 阶段结论：**P2 未关闭**，本轮交付「增量 1：H02 Job 管理与公共参数」。
+> 阶段结论：**P2 未关闭**。已交付「增量 1：H02 Job 管理与公共参数」（0.7.0）与
+> 「增量 2：子配方七步向导」（0.8.0，`T-005`/`T-042` 闭环）。后续增量顺序已由用户确认为 **H03 → H04 → H05**。
 
 ## 1. 本轮范围与结论
 
 | 项 | 内容 |
 |---|---|
-| 交付增件 | 增量 1（0.7.0，2026-11-10） |
-| 覆盖 | `H02` Job CRUD + 公共参数（`F-3.2.1-01~29`）；`H05` MapType 只读基线（8 类 Bin） |
-| 不覆盖 | 子 Recipe 分步向导（`F-3.2.2-01~06/80~82`）、`H03` 对位建模、`H04` ROI/算法、`H05` MapType 编辑 |
-| 前置闭环 | `T-001`、`T-002`、`T-021` 由用户于 2026-11-10 确认，已写入 PRD 第 9 章台账 |
+| 交付增件 | 增量 1（0.7.0）+ 增量 2：子配方七步向导（0.8.0，2026-11-10） |
+| 覆盖 | 增量 1：`H02` Job CRUD + 公共参数（`F-3.2.1-01~29`）、`H05` MapType 只读基线；增量 2：子配方 CRUD + 七步向导编排与门禁（`F-3.2.2-01~06`）、基础信息 T-005 全字段（33 项）、复判设置写入（`F-3.2.2-80~82`，`R-H02-07`） |
+| 不覆盖 | `H03` 拉平/Mark/参考图像的**图形化交互**（框选、全景图、双击定位——数据编辑已可用，能力接入为下一增量）、`H04` ROI 圈选交互、`H05` MapType 编辑、`AC-P2-05` 自动保存 |
+| 前置闭环 | `T-001`/`T-002`/`T-021`（增量 1）、`T-005`/`T-042`（增量 2）由用户于 2026-11-10 确认，已写入 PRD 第 9 章台账 |
 | 阶段门禁 | `AC-P2-01`~`AC-P2-04` 通过；`AC-P2-05`、`AC-P2-06` 未实现 → P2 未关闭 |
 
 ## 2. 已交付明细（H02 增量 1）
@@ -62,12 +63,56 @@
 | `BR-78` | `BR78_DeclaredTypeMustMatchFileExtension`、`BR78_Importer_RejectsMismatchedExtension`、`Importer_UnsupportedFormat_ReportsExplicitly` |
 | `T-004` 保留项 | `IgnoredByRecommendationFields_AreEditableAndPersisted`（8 个字段读写往返） |
 
+## 2bis. 增量 2 交付明细（子配方七步向导，0.8.0）
+
+### 领域与接口（`src/WaferInspect.Core`）
+
+| 文件 | 内容 |
+|---|---|
+| `Recipes/SubRecipeModels.cs` | `WizardStepKey`（7 步枚举，声明顺序即向导顺序，T-042 固化）、`WizardStepStatus`、`SubRecipeBasicInfo`（T-005 确认 5 分区 33 字段，图谱 Notch 方向必填）、`LevelingConfig`（BR-22/23/24）、`MarkPoint`/`ReferenceImageConfig`/`RoiZone`/`ScanAreaConfig`（AC-P2-03）、`RecheckConfig`（BR-20/R-H02-07）、`SubRecipeValidator`（基础信息必填 + BR-16/17/78 + Mark 三点结构 BR-25/26 + ROI 结构 + 拉平分数） |
+| `Recipes/SubRecipeWizard.cs` | B-25/BR-19 编排：`OrderedSteps` 唯一声明、`CanEnter/TryEnter/Enter`（跳步与失败拦截）、`CompleteCurrent/FailCurrent`（失败显式原因）、`Focus`（持久化后恢复视图焦点） |
+| `Recipes/SubRecipeRepository.cs` | `ISubRecipeRepository` + 内存实现：CRUD + 复制（含 7 步进度）、Job 内名称唯一、新建从父 Job 继承基础信息初值、`Changed` 事件 |
+
+### 界面（`src/WaferInspect.App`）
+
+| 文件 | 内容 |
+|---|---|
+| `Views/SubRecipeWizardDialog.xaml(.cs)` | 向导窗口：页头子配方 CRUD（`BtnSubNew/Duplicate/Rename/Delete`）+ 左侧 7 步列表（点击进入/重入，禁用态展示 B-25 拦截）+ 右侧步骤内容（Visibility 切换 7 面板，不用 ContentControl+Template）+ 页脚上一步/保存并完成本步/下一步 |
+| `ViewModels/Modules/SubRecipeWizardViewModel.cs` | 步骤 1 基础信息 T-005 全字段表单；步骤 2~7 各步数据编辑与门禁；失败显式呈现并锁后续；完成即持久化（进度重开不丢） |
+| `ViewModels/Modules/SubRecipeWizardItems.cs` | `SubRecipeRow`/`WizardStepRow`/`MarkRow`/`RoiZoneRow` 呈现行 |
+| `IH02DialogService` | 新增 `PickImageFile`（参考图像）与 `ShowSubRecipeWizard`（DI 工厂开窗） |
+| `Views/RecipeView.xaml` | Job 工具栏新增「子配方向导…」入口（`BtnSubRecipeWizard`） |
+| `Converters/Converters.cs` | 新增 `NonEmptyToVisibilityConverter`（`NonEmptyVis`，失败原因非空才显示） |
+
+### 图形化能力接入边界（显式登记，不伪造）
+
+| 步骤 | 本轮数据级完成 | 图形化/设备能力（下一增量） |
+|---|---|---|
+| 2 拉平 | 模式/模板类型/匹配分数配置 + BR-24 分数校验 | 框选区域自动执行（H03；模板类型与匹配分数为全系统共用配置 B-08） |
+| 3 Mark | 三点行列/平台坐标 + BR-25/26 结构校验 | 全景图加载、Map 网格拖动、双击 Die 定位（H03/H05） |
+| 4 参考图像 | 本地图像文件选择 | H06 采集（设备连接搁置 T-029） |
+| 5 ROI | 区域表（名称/X/Y/宽/高）+ 结构校验 | 图形化圈选（H04，AC-P2-03 单一数据源） |
+| 6 扫描区域 | 全片开关或引用 ROI 区域 | 与 H04 联动的区域选择 UI |
+| 7 复判设置 | 模式/相机（BR-20 默认）写入子配方，供 H08 读取 | 保存后双击 Map 定位 Die 的校验动作（H03 图形能力） |
+
+### 业务规则断言（`SubRecipeWizardTests`，16 项）
+
+| BR | 断言 |
+|---|---|
+| `B-25` | `OrderedSteps_AreExactlyTheSevenConfirmedSteps`（T-042 7 步）、`ForwardEntry_BlockedUntilPreviousStepCompleted`、`SkippedMiddleStep_IsRejected`、`FailedStep_BlocksAllLaterSteps_UntilReExecuted` |
+| `BR-19` | `CompletedStep_CanBeReEntered_AndReFailureReBlocksForward`（重入 + 再失败重新生效） |
+| `BR-24` | `LevelingConfig_MatchScore_MustBeWithin0To100` |
+| `BR-25/26` | Mark 三点结构校验（见 `SubRecipeValidator.ValidateMarks`，测试覆盖） |
+| `BR-20` | `RecheckConfig_Defaults_FollowBr20`（离线复判 + 复查相机） |
+| `T-005` | `SubRecipeValidator_RequiredFields_MatchT005Screenshot`、`MissingMapNotchAngle`、`Br78_TypeMustMatchFileExtension` |
+| 持久化 | `StepStates_PersistWithSubRecipe_RoundTripKeepsProgress`、`Duplicate_CopiesAllSevenStepStates`、继承/唯一名/跨 Job 重名 |
+
 ## 3. 后续待办与依赖
 
 | # | 待办 | 对应需求 | 依赖 | 阻塞 |
 |---|---|---|---|---|
-| 1 | 子 Recipe 分步向导（7 步可重入 + 门禁） | `R-H02-05/06`、`BR-19` | `T-042`（步骤全集）、`T-005`（基础信息字段，**高**） | 是 |
-| 2 | 复判设置（离线复判/在线验证、复查相机）写入 Recipe | `R-H02-07`、`BR-20/21` | 与 `H08` 共用契约（P3） | 否 |
+| 1 | ~~子 Recipe 分步向导~~ **已于增量 2 交付**（数据级完成，图形化交互见 §2bis 边界表） | `R-H02-05/06`、`BR-19` | `T-005`/`T-042` 已闭环 | 否 |
+| 2 | ~~复判设置写入~~ **已于增量 2 交付**（步骤 7，BR-20 默认） | `R-H02-07`、`BR-20/21` | `BR-21` 光照校准随 H03/H06；`H08` 消费属 P3 | 否 |
 | 3 | H03 拉平 / Mark / 参考图像与模板匹配（全系统唯一实现） | `R-H03-01~06`、`BR-22/23/24` | DEP-06；`H05` Wafer 扫描复用 | 否 |
 | 4 | H04 ROI 与扫描区域单一数据源 | `R-H04-01~06`、`AC-P2-03` | DEP-07 | 否 |
 | 5 | H05 MapType 编辑 + 8 类 Bin 快捷键 | `R-H05-02/03/07`、`AC-P2-06` | DEP-08 | 否 |
@@ -78,10 +123,11 @@
 
 | 编号 | 内容 | 阻塞级 | 影响 |
 |---|---|---|---|
-| `T-005` | 子 Recipe「基础信息」页完整字段清单（手册仅截图） | **高** | 向导第 1 步无法定稿；当前仅保留扩展点 |
-| `T-042` | 子配方步骤的完整顺序（手册 7 个命名步骤 + 基础信息，是否还有更多） | 中 | 向导步数/顺序 |
-| `T-004` | 「推荐忽略」6 项（定位 Die、方向、偏移、Col/Row、X/Y、Include/Exclude）语义 | 中 | 已按级 C 保留并可持久化，语义待补 |
+| ~~`T-005`~~ | ~~基础信息字段清单~~ **已闭环（2026-11-10，5 分区 33 字段）** | — | 已全量落入向导步骤 1 |
+| ~~`T-042`~~ | ~~步骤完整顺序~~ **已闭环（2026-11-10，7 步无更多）** | — | 已固化于 `SubRecipeWizard.OrderedSteps` |
+| `T-004` | 「推荐忽略」6 项（定位 Die、方向、偏移、Col/Row、X/Y、Include/Exclude）语义 | 中 | 已按级 C 保留并可持久化（Job 与子配方两处），语义待补 |
 | `T-023` | 自定义 LotId/WaferId 与 OCR 自动填充的覆盖优先级 | 中 | 与 H02→H01 数据流衔接 |
+| `T-024` | Mark 点重置是否有二次确认弹窗（手册标「慎用」） | 低 | H03 图形化增量实现时补 |
 
 ## 5. 验证证据（0.7.0）
 
@@ -94,6 +140,6 @@
 
 1. **Map 解析器仅 TXT / CSV**：`Xml` / `Sinf` 保留枚举位，导入时明确报「解析器未接入」，不伪造成功；
 2. **Job 仓库为内存实现**：重启即回到种子数据，落盘随 H07 配置单点确定；
-3. **向导未实现**：页内明确标注依赖 `T-005` / `T-042`，未放置假按钮；
+3. **向导图形化交互未接入**：向导编排与数据编辑已交付，但步骤 2~6 的框选/全景图/圈选等图形化能力由 H03/H04/H05 提供（下一增量，用户已确认顺序），界面已在步骤说明中显式标注，不伪造设备执行成功；
 4. **自动保存未实现**（`AC-P2-05`）：需先有「关闭参数页」语义；
 5. **Job 与运行页尚未联通**：`IJobCatalog` 仍为 `SimulatedJobCatalog`，待向导与 Recipe 完成后切换到 `IJobRepository`（避免半成品两处数据源）。

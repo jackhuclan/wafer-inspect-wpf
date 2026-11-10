@@ -56,6 +56,9 @@
                             Command="{Binding DeleteJobCommand}" AutomationProperties.AutomationId="BtnJobDelete" ToolTip="F-3.2.1-04"/>
                     <Button Content="刷新" Style="{StaticResource GhostButton}" Width="56" Height="26" Margin="0,0,4,4"
                             Command="{Binding RefreshJobsCommand}" AutomationProperties.AutomationId="BtnJobRefresh" ToolTip="F-3.2.1-05"/>
+                    <Button Content="子配方向导…" Style="{StaticResource GhostButton}" Width="92" Height="26" Margin="0,0,4,4"
+                            Command="{Binding OpenSubRecipeWizardCommand}" AutomationProperties.AutomationId="BtnSubRecipeWizard"
+                            ToolTip="F-3.2.2：针对选中 Job 的子配方七步向导（T-042 顺序）"/>
                 </WrapPanel>
 
                 <DataGrid Grid.Row="2" Margin="8,0,8,8" Style="{StaticResource Grid}"

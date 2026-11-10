@@ -35,6 +35,7 @@ public static class CoreServiceCollectionExtensions
         // P2（H02）：Job 仓库、Map 导入与 MapType 目录；H05 是 MapType 的唯一 Owner。
         services.AddSingleton<IMapTypeCatalog, SimulatedMapTypeCatalog>();
         services.AddSingleton<IJobRepository, InMemoryJobRepository>();
+        services.AddSingleton<ISubRecipeRepository, InMemorySubRecipeRepository>();
         services.AddSingleton<MapFileImporter>();
         services.AddSingleton<SelfCheckService>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();

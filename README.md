@@ -43,14 +43,14 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 |---|---|
 | `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Recipes/`、`Run/`、`Simulation/`、`DependencyInjection/` |
 | `src/WaferInspect.App` | WPF 主程序：`Views/`（含检测任务与配方管理视图、对话框）、`ViewModels/`（含 `Modules/` 的 H01~H10，其中 H01/H02 已实现）、`Models/`、`Services/` 等 |
-| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机、手动装载序列 / Job 目录、Job 仓库与 Map 导入单测（70 项） |
+| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机、手动装载序列 / Job 目录、Job 仓库与 Map 导入、子配方七步向导（T-042 顺序 / B-25 / BR-19 / T-005）单测（86 项） |
 | `tools/WaferInspect.Smoke` | 启动冒烟工具 |
 | `.github/workflows/build.yml` | CI：restore + Release 构建 + 单元测试 |
 
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（0.7.0）
+## 架构（0.8.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -81,11 +81,13 @@ UIAutomation 全流程实测（选 Job → 应用 → 开始运行 → 实时进
 13 项动作按用户指示**明确搁置**（未伪造成功、未下发指令，日志以「[搁置]」标注），清单与恢复
 条件见 [`docs/P1-Migration-Status.md`](docs/P1-Migration-Status.md) §4。
 
-0.7.0 交付 P2 增量 1（`T-001`/`T-002`/`T-021` 已由用户确认闭环）：`Core/Recipes` 落地 Job
-23 字段组定义与校验（BR-15/16/17/78）、TXT/CSV Map 导入器、`IJobRepository`（CRUD + 名称唯一），
-`Core/Maps` 提供 MapType 只读基线（8 类 Bin）；「配方管理」页由骨架替换为真实 Job 列表 +
-CRUD + 公共参数表单（推荐忽略项全量保留）。子 Recipe 分步向导依赖 `T-005`（高阻塞）暂未实现，
-P2 未关闭；明细见 [`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
+0.7.0 交付 P2 增量 1（`T-001`/`T-002`/`T-021` 闭环）：Job CRUD + 公共参数表单 + Map 导入器 + MapType 基线。
+0.8.0 交付 P2 增量 2（`T-005`/`T-042` 闭环）：`Core/Recipes` 落地子配方七步向导域——T-005 确认的
+基础信息 5 分区 33 字段（图谱 Notch 方向必填）、T-042 确认的 7 步固定顺序（基础信息 → 拉平 →
+Mark → 参考图像 → ROI → 扫描区域 → 复判设置）、B-25 门禁（失败禁止下一步）与 BR-19 可重入、
+BR-20 复判设置写入子配方（R-H02-07）。「配方管理」页新增「子配方向导」入口与
+`SubRecipeWizardDialog` 七步界面，步骤进度随子配方持久化。步骤 2~6 的图形化交互由
+H03/H04/H05 提供（后续增量，用户已确认顺序 H03 → H04 → H05）。P2 未关闭；明细见 [`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
 F↔R↔AC 追溯和待确认项见 [`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
 
 ## 左侧导航配置
