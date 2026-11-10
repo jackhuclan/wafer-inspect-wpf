@@ -1,3 +1,5 @@
+using WaferInspect.Core.Alignment;
+
 namespace WaferInspect.Core.Recipes;
 
 /// <summary>
@@ -199,6 +201,18 @@ public sealed class LevelingConfig
     /// <summary>匹配分数阈值（BR-24：高于阈值才成功，0~100）。</summary>
     public double MatchScore { get; set; } = 70;
 
+    /// <summary>
+    /// F-3.2.2-39：最近一次拉平执行是否成功（成功后才允许下一步）；null = 尚未执行。
+    /// 执行链路：H03 <c>TemplateMatchingEngine</c>（B-08 唯一实现）在视窗图像上真实计算。
+    /// </summary>
+    public bool? LastExecutionPassed { get; set; }
+
+    /// <summary>最近一次拉平执行的匹配分数（0~100）。</summary>
+    public double LastExecutionScore { get; set; }
+
+    /// <summary>最近一次拉平执行的图像来源标注（模拟 / 采集），显式登记不伪造。</summary>
+    public string LastExecutionImageSource { get; set; } = string.Empty;
+
     public LevelingConfig Clone() => (LevelingConfig)MemberwiseClone();
 }
 
@@ -208,10 +222,59 @@ public sealed record MarkPoint(int Index, int Row, int Col, double PlatformX, do
 /// <summary>「参考图像」步骤配置（图像采集由 H06 提供，此处保存引用路径与说明）。</summary>
 public sealed class ReferenceImageConfig
 {
-    /// <summary>参考图像路径；为空表示尚未采集。</summary>
+    /// <summary>参考图像路径；为空表示尚未采集/未选择本地文件。</summary>
     public string ImagePath { get; set; } = string.Empty;
 
+    /// <summary>F-3.2.2-67：参考 Die 数量（BR-29：数量越大生成耗时越长）。</summary>
+    public int ReferenceDieCount { get; set; }
+
+    /// <summary>F-3.2.2-62：视野缩放（相机视野利用率）；修改后需重新生成参考图像（BR-30）。</summary>
+    public double FovZoom { get; set; } = 1;
+
+    /// <summary>F-3.2.2-61：Block（推荐忽略，级 C 保留）。</summary>
+    public string BlockParam { get; set; } = string.Empty;
+
+    /// <summary>F-3.2.2-65：Golden 创建参数（推荐忽略，级 C 保留）。</summary>
+    public string GoldenParam { get; set; } = string.Empty;
+
+    /// <summary>F-3.2.2-67：参考图像是否已生成成功（成功后才允许下一步）。</summary>
+    public bool Generated { get; set; }
+
+    /// <summary>F-3.2.2-64/66：是否进入过 FOV 图谱手动调整。</summary>
+    public bool ManualAdjusted { get; set; }
+
+    /// <summary>B-09：Golden Die 规划结果（H03 唯一生成，H08 只读展示）。</summary>
+    public GoldenDiePlan? GoldenDie { get; set; }
+
     public ReferenceImageConfig Clone() => (ReferenceImageConfig)MemberwiseClone();
+}
+
+/// <summary>
+/// H03 Mark 点设置步骤的配置（`F-3.2.2-41~49`），随子配方持久化。
+/// 「推荐忽略」项（倍镜 / 三点 / 2+1）按级 C 全量保留（E-01）。
+/// </summary>
+public sealed class MarkSettingsConfig
+{
+    /// <summary>BR-27：缩略图比例必须为 1/2ⁿ，默认 1/4。</summary>
+    public double ThumbnailRatio { get; set; } = 0.25;
+
+    /// <summary>BR-28：缩略图倍镜与左侧倍镜一致，维持默认（推荐忽略，级 C 保留）。</summary>
+    public string ThumbnailMagnifier { get; set; } = "默认";
+
+    /// <summary>F-3.2.2-43：缩略图扫描轴速度（维持默认）。</summary>
+    public double ScanAxisSpeed { get; set; } = 100;
+
+    /// <summary>F-3.2.2-49：拉平方向；三点 / 2+1 为推荐忽略，级 C 保留。</summary>
+    public MarkAlignmentMethod Method { get; set; } = MarkAlignmentMethod.Horizontal;
+
+    /// <summary>F-3.2.2-46：Map 定位是否已确定（锁定后不可再移动网格）。</summary>
+    public bool GridLocked { get; set; }
+
+    /// <summary>Map 定位网格偏移（F-3.2.2-45 手动拖动的累计量）。</summary>
+    public double GridOffsetX { get; set; }
+    public double GridOffsetY { get; set; }
+
+    public MarkSettingsConfig Clone() => (MarkSettingsConfig)MemberwiseClone();
 }
 
 /// <summary>「ROI」步骤的区域定义（AC-P2-03：ROI 与扫描区域在向导与参数验证中是同一份数据，H04 唯一数据源）。</summary>
@@ -270,6 +333,9 @@ public sealed class SubRecipe
     /// <summary>步骤 3 Mark（BR-25/26：三点对位）。</summary>
     public IReadOnlyList<MarkPoint> Marks { get; set; } = [];
 
+    /// <summary>步骤 3 Mark 设置（F-3.2.2-41~49：缩略图/方向/网格定位，H03）。</summary>
+    public MarkSettingsConfig MarkSettings { get; set; } = new();
+
     /// <summary>步骤 4 参考图像。</summary>
     public ReferenceImageConfig ReferenceImage { get; set; } = new();
 
@@ -294,6 +360,7 @@ public sealed class SubRecipe
         BasicInfo = BasicInfo.Clone(),
         Leveling = Leveling.Clone(),
         Marks = Marks.ToList(),
+        MarkSettings = MarkSettings.Clone(),
         ReferenceImage = ReferenceImage.Clone(),
         RoiZones = RoiZones.ToList(),
         ScanArea = ScanArea.Clone(),

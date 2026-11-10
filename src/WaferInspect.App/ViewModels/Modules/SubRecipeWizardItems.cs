@@ -100,3 +100,31 @@ public sealed partial class RoiZoneRow : ObservableBase
 
     [ObservableProperty] private string _height = string.Empty;
 }
+
+/// <summary>
+/// Map 定位网格单元格（步骤 3，F-3.2.2-45）：双击填入当前 Mark 的行列（F-3.2.2-59）。
+/// 拖动网格由向导窗口 code-behind 调用 ViewModel.MoveGrid 实现。
+/// </summary>
+public sealed class MarkCellRow
+{
+    public MarkCellRow(int row, int col)
+    {
+        Row = row;
+        Col = col;
+    }
+
+    public int Row { get; }
+
+    public int Col { get; }
+
+    /// <summary>Canvas 左偏移（像素，含网格整体偏移）。</summary>
+    public double X { get; set; }
+
+    /// <summary>Canvas 上偏移（像素，含网格整体偏移）。</summary>
+    public double Y { get; set; }
+
+    /// <summary>单元格填充色（F-3.2.2-60 分类口径，默认黄 = 待检测）。</summary>
+    public string Fill { get; set; } = "#F5C518";
+
+    public string Tip => $"行 {Row} / 列 {Col}（双击填入当前 Mark，F-3.2.2-59）";
+}

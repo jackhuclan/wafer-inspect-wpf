@@ -54,8 +54,8 @@ src/WaferInspect.App/
 │                             SubRecipeWizardDialog（七步向导窗口）与配套对话框 SelectJob / EfemSettings /
 │                             WaferConfirm / JobInfo / RenameJob
 ├─ ViewModels/                页面状态编排、[ObservableProperty] / [RelayCommand]
-│  └─ Modules/                H01~H10 模块 ViewModel：H01/H02（H01RunViewModel / H02RecipeViewModel /
-│                             SubRecipeWizardViewModel）已实现，其余为骨架
+│  └─ Modules/                H01~H10 模块 ViewModel：H01/H02/H03（H01RunViewModel / H02RecipeViewModel /
+│                             SubRecipeWizardViewModel 含 H03 图形交互）已实现，其余为骨架
 ├─ Models/                    绑定模型（ObservableBase / NavGroup / NavItem / 任务 / 告警 …）
 ├─ Navigation/                把 Core 的纯配置转成运行时导航模型（实例服务）
 ├─ Services/                  1 Hz 数据泵与其 IHostedService 托管；H01/H02DialogService（对话框边界实现）
@@ -92,7 +92,7 @@ src/WaferInspect.Core/
 设备命令透传、统一事件、默认拒绝鉴权、统一角色模型展开、认证成败与登录门禁（含 `BR-76` 初始账号断言）、
 运行状态机（`RunControllerTests`：晶圆内计数/结晶提交/暂停恢复/结批/BR-74 拦截等 12 项）与
 手动装载序列 / Job 目录（`ManualLoadAndJobCatalogTests` 5 项）、Job 仓库与 Map 导入
-（`JobRepositoryTests` 19 项）、子配方向导（`SubRecipeWizardTests` 16 项：T-042 顺序 / B-25 / BR-19 / T-005），共 86 项；
+（`JobRepositoryTests` 19 项）、子配方向导（`SubRecipeWizardTests` 16 项）、H03 对位（`AlignmentEngineTests` 26 项），共 112 项；
 `BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；

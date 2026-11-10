@@ -50,7 +50,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（0.8.0）
+## 架构（0.9.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -82,12 +82,12 @@ UIAutomation 全流程实测（选 Job → 应用 → 开始运行 → 实时进
 条件见 [`docs/P1-Migration-Status.md`](docs/P1-Migration-Status.md) §4。
 
 0.7.0 交付 P2 增量 1（`T-001`/`T-002`/`T-021` 闭环）：Job CRUD + 公共参数表单 + Map 导入器 + MapType 基线。
-0.8.0 交付 P2 增量 2（`T-005`/`T-042` 闭环）：`Core/Recipes` 落地子配方七步向导域——T-005 确认的
-基础信息 5 分区 33 字段（图谱 Notch 方向必填）、T-042 确认的 7 步固定顺序（基础信息 → 拉平 →
-Mark → 参考图像 → ROI → 扫描区域 → 复判设置）、B-25 门禁（失败禁止下一步）与 BR-19 可重入、
-BR-20 复判设置写入子配方（R-H02-07）。「配方管理」页新增「子配方向导」入口与
-`SubRecipeWizardDialog` 七步界面，步骤进度随子配方持久化。步骤 2~6 的图形化交互由
-H03/H04/H05 提供（后续增量，用户已确认顺序 H03 → H04 → H05）。P2 未关闭；明细见 [`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
+0.8.0 交付 P2 增量 2（`T-005`/`T-042` 闭环）：子配方七步向导域与界面（B-25 门禁 / BR-19 可重入 / 进度持久化）。
+0.9.0 交付 P2 增量 3（`T-024` 闭环）：`Core/Alignment` 落地 H03 对位能力族——`TemplateMatchingEngine`
+为 **B-08 全系统唯一模板匹配实现**（AC-P2-04，H05 Wafer 扫描将复用同一单例）、BR-21 光照校准、
+BR-26 Mark 方向校验、T-024 点位重置二次确认、GoldenDie 唯一生成（B-09，H08 只读）；向导步骤 2/3/4
+接入视窗图像拖拽框选自动拉平（模拟视窗显式标注，H06 采集随 T-029 搁置）、Map 定位网格拖动/锁定/
+双击 Die 填行列、参考图像生成与 FOV 手动调整入口。P2 未关闭（剩余 H04 → H05）；明细见 [`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
 F↔R↔AC 追溯和待确认项见 [`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
 
 ## 左侧导航配置

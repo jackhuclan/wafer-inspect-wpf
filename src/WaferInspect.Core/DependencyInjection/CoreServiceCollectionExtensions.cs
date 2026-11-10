@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using WaferInspect.Core.Alignment;
 using WaferInspect.Core.Data;
 using WaferInspect.Core.Devices;
 using WaferInspect.Core.Events;
@@ -38,6 +39,12 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<ISubRecipeRepository, InMemorySubRecipeRepository>();
         services.AddSingleton<MapFileImporter>();
         services.AddSingleton<SelfCheckService>();
+        // P2（H03，B-08）：对位与模板匹配能力族——引擎为全系统唯一实现（AC-P2-04），
+        // H02 配方向导与 H05 Wafer 扫描必须复用同一单例；H08 对 GoldenDie 只读（B-09）。
+        services.AddSingleton<TemplateMatchingEngine>();
+        services.AddSingleton<LightCalibrationAnalyzer>();
+        services.AddSingleton<MarkAlignmentService>();
+        services.AddSingleton<ReferenceImagePlanner>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
         services.AddSingleton<IAccountStore, InMemoryAccountStore>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
