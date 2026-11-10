@@ -24,7 +24,8 @@ public sealed partial class WaferScanViewModel : ObservableBase
     private readonly MapGridModel _map = new();
     private readonly IH05DialogService _dialogs;
     private readonly ReferenceImagePlanner _planner = new();
-    private readonly OfflineScanExecutor _executor = new(new TemplateMatchingEngine(), new MarkAlignmentService());
+    private readonly IScanExecutor _scanExecutor = new OfflineScanExecutor(new TemplateMatchingEngine(), new MarkAlignmentService());
+    private readonly DeviceScanExecutor _deviceExecutor = new();
     private readonly InternalCsvSinfExporter _sinfCsv = new();
     private readonly IndustrialSinfExporter _sinfIndustrial = new();
     private string _currentMapTypeId = string.Empty;
@@ -81,7 +82,8 @@ public sealed partial class WaferScanViewModel : ObservableBase
         "均仅登记不伪造设备/算法结果（E-08 / E-10）。" +
         "[P5·已交付] H03 参考图像（B-09）Golden Die 规划与落格已在本地真实落地：步骤 5 的搜索圆规划点位现可由 ReferenceImagePlanner 本地生成并标记「规划完成（Planned）」，真实搜索仍依赖 B-10/T-029 搁置。" +
         "[P6·已交付] H06 扫描执行/对位离线演算沙盒已落地：步骤 7（灰度模板+Die 匹配）与步骤 8（降分重试）现可由 OfflineScanExecutor 在合成 FOV 上真实跑通 B-08 引擎与 H03 对位并标记「规划完成（Planned）」；步骤 3/4/6/9 仍需真实设备采集/ROI/锁定/填充（T-029/T-035），维持诚实搁置。" +
-        "[P7·已交付] Sinf 导出已抽象为可插拔 ISinfExporter：默认 InternalCsv（诚实内部 CSV，非工业字节流，T-037 待确认）；Industrial 为预留实现位，规范到位即 drop-in 替换，绝不伪造（E-08/E-10）。";
+        "[P7·已交付] Sinf 导出已抽象为可插拔 ISinfExporter：默认 InternalCsv（诚实内部 CSV，非工业字节流，T-037 待确认）；Industrial 为预留实现位，规范到位即 drop-in 替换，绝不伪造（E-08/E-10）。" +
+        "[P8·已交付] H06 扫描执行/对位已抽象为可插拔 IScanExecutor（1.10.0）：默认 OfflineScanExecutor（合成 FOV + B-08 引擎 + H03 对位，确定性离线演算）经装配缝委托；DeviceScanExecutor 为预留实现位（T-029/T-035 未闭环时 Execute 抛诚实异常，绝不注册生产 IDeviceGateway、绝不伪造设备结果）。闭环后仅实现 DeviceScanExecutor 并切换 SelectedScanExecutorKind 即完成真实设备替换，调用方与 UI 不变（E-08/E-10）。";
 
     /// <summary>当前选中的 Sinf 导出格式（BR-50 / B-12）。默认内部 CSV；工业字节流因 T-037 待确认当前不可选。</summary>
     [ObservableProperty] private SinfExporterKind _selectedSinfExporterKind = SinfExporterKind.InternalCsv;
@@ -93,6 +95,17 @@ public sealed partial class WaferScanViewModel : ObservableBase
     /// <summary>按当前选择解析活动导出器（可插拔骨架的核心 seam）。</summary>
     private ISinfExporter ActiveSinfExporter =>
         SelectedSinfExporterKind == SinfExporterKind.Industrial ? _sinfIndustrial : _sinfCsv;
+
+    /// <summary>当前选中的扫描执行源（H06）。默认离线演算；真实设备因 T-029/T-035 待确认当前不可选。</summary>
+    [ObservableProperty] private ScanExecutorKind _selectedScanExecutorKind = ScanExecutorKind.Offline;
+
+    /// <summary>可选扫描执行源列表（含预留的真实设备项，UI 依 T-029/T-035 状态禁用）。</summary>
+    public ObservableCollection<ScanExecutorKind> ScanExecutorOptions { get; } =
+        new() { ScanExecutorKind.Offline, ScanExecutorKind.Device };
+
+    /// <summary>按当前选择解析活动扫描执行器（H06 可插拔骨架的核心 seam）。</summary>
+    private IScanExecutor ActiveScanExecutor =>
+        SelectedScanExecutorKind == ScanExecutorKind.Device ? _deviceExecutor : _scanExecutor;
 
     partial void OnSelectedTypeChanged(MapTypeRow value) => LoadBrushBins();
 
@@ -251,15 +264,17 @@ public sealed partial class WaferScanViewModel : ObservableBase
     /// <summary>规划出的参考 Die 坐标文本（前若干项），供 UI 列表展示。</summary>
     [ObservableProperty] private ObservableCollection<string> _goldenReferenceDieTexts = new();
 
-    /* ---------------- H06 扫描执行 / 对位（离线演算沙盒，T-029/T-035 诚实搁置，P6 1.8.0） ----------------
-       真实相机采集 / AI 推理属 H06（设备连接 T-029/T-035 搁置）；本段仅在合成 FOV 上真实跑 B-08 引擎与
-       H03 对位（确定性离线演算），不接入生产 IDeviceGateway、不伪造设备结果（E-08/E-10）。 */
+    /* ---------------- H06 扫描执行 / 对位（可插拔 IScanExecutor 骨架，P8 1.10.0） ----------------
+       真实相机采集 / AI 推理属 H06（设备连接 T-029/T-035 搁置）。本段经 IScanExecutor 装配缝委托：
+       当前默认 OfflineScanExecutor 在合成 FOV 上真实跑 B-08 引擎与 H03 对位（确定性离线演算），
+       DeviceScanExecutor 为预留位（T-029/T-035 未闭环时 Execute 抛诚实异常）；不接入生产 IDeviceGateway、
+       不伪造设备结果（E-08/E-10）。闭环后仅实现 DeviceScanExecutor 并切换 SelectedScanExecutorKind 即完成替换。 */
 
     /// <summary>H06 离线扫描匹配阈值（BR-24，0~100，高于才判通过）。</summary>
     [ObservableProperty] private double _matchThreshold = 75;
 
-    /// <summary>最近一次离线扫描演算报告（H06，<see cref="OfflineScanReport.IsOffline"/> 恒 true）。</summary>
-    [ObservableProperty] private OfflineScanReport _lastScanReport;
+    /// <summary>最近一次扫描演算报告（H06，<see cref="ScanReport.IsOffline"/> 离线恒 true / 设备为 false）。</summary>
+    [ObservableProperty] private ScanReport _lastScanReport;
 
     /// <summary>是否已运行过离线扫描（启用降分重试 / 对位展示）。</summary>
     [ObservableProperty] private bool _hasScanReport;
@@ -355,7 +370,7 @@ public sealed partial class WaferScanViewModel : ObservableBase
                 try
                 {
                     double lower = Math.Max(0, MatchThreshold - 10);
-                    var retry = _executor.RetryWithLowerThreshold(LastScanReport, lower);
+                    var retry = ActiveScanExecutor.RetryWithLowerThreshold(LastScanReport, lower);
                     MatchThreshold = lower;
                     LastScanReport = retry;
                     HasScanReport = true;
@@ -541,14 +556,15 @@ public sealed partial class WaferScanViewModel : ObservableBase
     /// 运行一次离线扫描演算：合成 FOV 上真实跑 B-08 引擎算匹配分、H03 对位算平台坐标（确定性、可复现）。
     /// 需在已生成 Map 图后调用（依赖 cols/rows）；真实设备采集 / AI 推理属 T-029/T-035 搁置，不伪造（E-08/E-10）。
     /// </summary>
-    private OfflineScanReport RunOfflineScanCore()
+    private ScanReport RunOfflineScanCore()
     {
         if (_map.Cells.Count == 0)
             throw new InvalidOperationException("请先生成 Map 图（BR-45）");
         if (MatchThreshold is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(MatchThreshold), "匹配阈值须在 0~100 之间（BR-24）");
 
-        var report = _executor.Execute(_map.Columns, _map.Rows, MatchThreshold);
+        // 经可插拔 IScanExecutor 缝委托：默认离线（合成 FOV）；选中真实设备且 T-029/T-035 未闭环时抛诚实异常
+        var report = ActiveScanExecutor.Execute(_map.Columns, _map.Rows, MatchThreshold);
         LastScanReport = report;
         HasScanReport = true;
         ScanReportText = $"[离线演算] 匹配分数 {report.MatchScore}（阈值 {report.MatchThreshold:F0}）{(report.MatchPassed ? "通过" : "未通过")}；" +
@@ -584,7 +600,7 @@ public sealed partial class WaferScanViewModel : ObservableBase
         try
         {
             double lower = Math.Max(0, MatchThreshold - 10);
-            var retry = _executor.RetryWithLowerThreshold(LastScanReport, lower);
+            var retry = ActiveScanExecutor.RetryWithLowerThreshold(LastScanReport, lower);
             MatchThreshold = lower;
             LastScanReport = retry;
             HasScanReport = true;

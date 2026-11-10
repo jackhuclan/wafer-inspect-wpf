@@ -3,19 +3,26 @@ using WaferInspect.Core.Recipes;
 namespace WaferInspect.Core.Alignment;
 
 /// <summary>
-/// H06 离线确定性扫描执行 / 对位沙盒（P6 1.8.0）。
+/// H06 离线确定性扫描执行 / 对位沙盒（P6 1.8.0），实现 <see cref="IScanExecutor"/> 的离线分支。
 /// 真实调用 B-08 唯一匹配引擎（<see cref="TemplateMatchingEngine"/>）与 H03 对位服务（<see cref="MarkAlignmentService"/>），
 /// 但视窗 FOV 由 <see cref="SyntheticFovImage"/> 合成——未接入真实相机采集 / AI 推理（T-029 / T-035 搁置）。
 /// </summary>
 /// <remarks>
 /// 【诚实边界】本类是离线演算沙盒，<b>不是</b> <see cref="IDeviceGateway"/> 生产适配器（AGENTS.md：T-029 未闭环前不得注册
-/// 虚构生产网关）；所有输出 <see cref="OfflineScanReport.IsOffline"/> 恒为 true，并附带离线说明，绝不伪造设备采集 /
-/// AI 推理结果（E-08 / E-10）。真实设备扫描需待 T-029 / T-035 闭环后替换 FOV 来源与匹配输入。
+/// 虚构生产网关）；所有输出 <see cref="ScanReport.IsOffline"/> 恒为 true，并附带离线说明，绝不伪造设备采集 /
+/// AI 推理结果（E-08 / E-10）。真实设备扫描由 <see cref="DeviceScanExecutor"/> 预留，待 T-029 / T-035 闭环后替换 FOV 来源与匹配输入。
+/// 两种实现共用 <see cref="IScanExecutor"/>，因此未来替换是 drop-in：仅 FOV 来源变化，匹配 / 对位逻辑不变。
 /// </remarks>
-public sealed class OfflineScanExecutor
+public sealed class OfflineScanExecutor : IScanExecutor
 {
     private readonly TemplateMatchingEngine _matcher;
     private readonly MarkAlignmentService _alignment;
+
+    /// <summary>执行源种类：离线确定性演算。</summary>
+    public ScanExecutorKind Kind => ScanExecutorKind.Offline;
+
+    /// <summary>恒为 true：本结果来自离线合成 FOV，未接入真实设备（E-08/E-10 诚实边界）。</summary>
+    public bool IsOffline => true;
 
     /// <summary>构造：注入 B-08 唯一匹配引擎与 H03 对位服务（禁止另写匹配 / 对位逻辑）。</summary>
     public OfflineScanExecutor(TemplateMatchingEngine matcher, MarkAlignmentService alignment)
@@ -33,7 +40,7 @@ public sealed class OfflineScanExecutor
     /// <param name="seed">合成 FOV 种子（确定性，可复现）。</param>
     /// <param name="dieXmm">单 Die 宽（mm），对位换算用。</param>
     /// <param name="dieYmm">单 Die 高（mm），对位换算用。</param>
-    public OfflineScanReport Execute(
+    public ScanReport Execute(
         int columns, int rows, double matchThreshold = 75, int? seed = null, double dieXmm = 10, double dieYmm = 10)
     {
         if (columns <= 0 || rows <= 0)
@@ -64,7 +71,7 @@ public sealed class OfflineScanExecutor
         int refCol = columns / 2;
         var pt = _alignment.DieToPlatform(refRow, refCol, dieXmm, dieYmm, grid);
 
-        return new OfflineScanReport
+        return new ScanReport
         {
             IsOffline = true,
             FovSeed = s,
@@ -92,7 +99,7 @@ public sealed class OfflineScanExecutor
     /// </summary>
     /// <param name="previous">上一次离线演算报告（取其 FOV 种子与网格，保证同一视窗）。</param>
     /// <param name="lowerThreshold">降低后的阈值（0~100）。</param>
-    public OfflineScanReport RetryWithLowerThreshold(OfflineScanReport previous, double lowerThreshold)
+    public ScanReport RetryWithLowerThreshold(ScanReport previous, double lowerThreshold)
     {
         if (previous == null) throw new ArgumentNullException(nameof(previous));
         if (lowerThreshold is < 0 or > 100)
@@ -100,61 +107,4 @@ public sealed class OfflineScanExecutor
 
         return Execute(previous.Columns, previous.Rows, lowerThreshold, previous.FovSeed);
     }
-}
-
-/// <summary>
-/// H06 离线扫描演算结果（P6 1.8.0）。<see cref="IsOffline"/> 恒为 true，明确标注非真实设备结果。
-/// </summary>
-public sealed record OfflineScanReport
-{
-    /// <summary>恒为 true：本结果来自离线合成 FOV，未接入真实设备（E-08/E-10 诚实边界）。</summary>
-    public bool IsOffline { get; init; }
-
-    /// <summary>合成 FOV 种子（确定性复现）。</summary>
-    public int FovSeed { get; init; }
-
-    /// <summary>FOV 宽（像素）。</summary>
-    public int FovWidth { get; init; }
-
-    /// <summary>FOV 高（像素）。</summary>
-    public int FovHeight { get; init; }
-
-    /// <summary>使用的模板类型（当前固定灰度模板）。</summary>
-    public TemplateType TemplateType { get; init; }
-
-    /// <summary>B-08 引擎真实算出的匹配分数（0~100）。</summary>
-    public double MatchScore { get; init; }
-
-    /// <summary>BR-24：分数严格大于阈值则通过。</summary>
-    public bool MatchPassed { get; init; }
-
-    /// <summary>本次匹配阈值。</summary>
-    public double MatchThreshold { get; init; }
-
-    /// <summary>引擎给出的建议（如框选无效、超界）。</summary>
-    public IReadOnlyList<string> Advisories { get; init; } = [];
-
-    /// <summary>H03 对位解出的平台 X 坐标（mm）。</summary>
-    public double PlatformX { get; init; }
-
-    /// <summary>H03 对位解出的平台 Y 坐标（mm）。</summary>
-    public double PlatformY { get; init; }
-
-    /// <summary>参与对位的参考 Die 行（中心 Die）。</summary>
-    public int ReferenceRow { get; init; }
-
-    /// <summary>参与对位的参考 Die 列（中心 Die）。</summary>
-    public int ReferenceColumn { get; init; }
-
-    /// <summary>Map 网格列数（重算时复用，保证同一视窗）。</summary>
-    public int Columns { get; init; }
-
-    /// <summary>Map 网格行数。</summary>
-    public int Rows { get; init; }
-
-    /// <summary>报告生成时间。</summary>
-    public DateTime GeneratedAt { get; init; }
-
-    /// <summary>离线演算诚实说明（非真实设备结果）。</summary>
-    public string Note { get; init; } = "";
 }

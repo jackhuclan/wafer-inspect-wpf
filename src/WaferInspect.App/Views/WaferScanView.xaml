@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:WaferInspectHMI.ViewModels.Modules"
              xmlns:views="clr-namespace:WaferInspectHMI.Views"
              xmlns:services="clr-namespace:WaferInspectHMI.Services"
+             xmlns:alignment="clr-namespace:WaferInspect.Core.Alignment;assembly=WaferInspect.Core"
              FontFamily="Segoe UI, Microsoft YaHei" FontSize="13">
     <UserControl.Resources>
         <Style x:Key="FieldLabel" TargetType="TextBlock">
@@ -36,6 +37,8 @@
         <views:BoolToCnConverter x:Key="BoolToCn"/>
         <views:SinfKindToTextConverter x:Key="SinfKindToText"/>
         <views:SinfKindToEnabledConverter x:Key="SinfKindToEnabled"/>
+        <views:ScanKindToTextConverter x:Key="ScanKindToText"/>
+        <views:ScanKindToEnabledConverter x:Key="ScanKindToEnabled"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -422,6 +425,24 @@
                             <TextBlock Text="匹配阈值（BR-24，0~100）" Style="{StaticResource FieldLabel}"/>
                             <TextBox Width="120" Style="{StaticResource FieldBox}" Text="{Binding MatchThreshold, UpdateSourceTrigger=PropertyChanged}"
                                      AutomationProperties.AutomationId="FieldMatchThreshold"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8" VerticalAlignment="Bottom">
+                            <TextBlock Text="扫描执行源（T-029/T-035）" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Width="200" Style="{StaticResource FieldCombo}" ItemsSource="{Binding ScanExecutorOptions}"
+                                      SelectedItem="{Binding SelectedScanExecutorKind, Mode=TwoWay}"
+                                      AutomationProperties.AutomationId="ComboScanSource"
+                                      ToolTip="真实设备扫描因 T-029/T-035 规范待确认暂不可选；实现 DeviceScanExecutor.Execute 后启用">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type alignment:ScanExecutorKind}">
+                                        <TextBlock Text="{Binding Converter={StaticResource ScanKindToText}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem">
+                                        <Setter Property="IsEnabled" Value="{Binding Converter={StaticResource ScanKindToEnabled}}"/>
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                            </ComboBox>
                         </StackPanel>
                         <Button Content="运行离线扫描" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" Height="28"
                                 Command="{Binding RunOfflineScanCommand}" AutomationProperties.AutomationId="BtnRunOfflineScan"

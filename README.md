@@ -50,7 +50,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（1.9.0）
+## 架构（1.10.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -59,12 +59,13 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 | 依赖注入 | `Core` 提供 `AddWaferInspectCore()`：导航、`IDataSource`、Map、事件、鉴权与设备命令层；`App` 追加数据泵、模块 ViewModel 注册表、窗口 |
 | 生命周期 | 1 Hz 节拍由 `DispatcherTimerLiveDataPump` 产生，`SimulationHostedService : IHostedService` 随主机启停；日志由通用主机提供（默认 Warning 级别） |
 | 可测性 | 确定性良率算法与导航目录在 `Core`（net10.0、无 WPF 类型），测试项目用真实 Host 验证装配与历史数值 |
+| 可插拔能力 | H06 扫描执行抽象为 `IScanExecutor`（默认 `OfflineScanExecutor` 离线演算，`DeviceScanExecutor` 预留位诚实抛异常）；Sinf 导出抽象为 `ISinfExporter`（P7）；依赖规范（T-029/T-035/T-037）到位即 drop-in 替换，不伪造 |
 
 包版本集中维护在 `Directory.Packages.props`（CPM），各 `csproj` 的 `PackageReference` 不写版本号。
 
 启动链路：`App.OnStartup` → 构建 Host → `host.Start()`（启动数据泵）→ 登录窗口（`LoginWindow`，唯一登录入口）→ 认证成功经 `LoginGate` 校验 → 解析 `MainWindow`（注入 `MainViewModel`）→ `Show()`；取消登录则应用退出。
 
-## Blade 迁移状态（P0 / P1 / P2 已关闭，P3 已关闭，P4-A / P4-B 已关闭，P5 已关闭，P6 已关闭，P7 已关闭）
+## Blade 迁移状态（P0 / P1 / P2 已关闭，P3 已关闭，P4-A / P4-B 已关闭，P5 已关闭，P6 已关闭，P7 已关闭，P8 已关闭）
 
 P0 基线：4 组 14 项导航，新增「数据分析」(`analysis`) 与「图谱管理」(`maps`)，
 两页均明确标识为尚未迁移的骨架，不展示伪造的历史业务数据。H01~H10 ViewModel 已注册，
@@ -170,6 +171,6 @@ new NavGroupDefinition("system", "系统", /* DefaultExpanded */ false,
 - 数据仍为 1 Hz 模拟数据；良率读取已切换到可替换的 `IDataSource`，检测运行由 `WaferRunController` 模拟推进；
 - 设备连接未接入（T-029 / T-030 待确认）：所有真实设备动作暂被搁置，界面动作以「[搁置] 未下发」日志与提示明确标注，不伪造成功；H04 单幅/全部图片测试与预扫描均为确定性离线演算，AI 推理随 T-035 搁置；
 - ROI 具体算法参数项（T-014）与高级参数行为（T-032）待实机 / 算法文档确认：当前以检测 / 量测 / 全局三组可扩展集合 + 显式标注的占位项保留，未用固定滑块替代；
-- 图谱相关 P4 能力：Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩（R-H05-05）已在 1.5.0（P4-A）由独立「Wafer 扫描」页真实交付；**Wafer 扫描 12 步流程（R-H05-04 / B-24）与 Sinf 诚实内部导出（R-H05-06 / BR-50，B-12 唯一实现属 H05）已在 1.6.0（P4-B）交付**——流程编排层真实落地、依赖 H03/H06 的步骤（3~9）诚实 `[搁置]`，Sinf 为自洽内部 CSV 并标注「非工业 Sinf 字节流（T-037 待确认）」，不伪造工业格式；**H03 参考图像（B-09）Golden Die 规划与落格已在 1.7.0（P5）由 Wafer 扫描页接入 `ReferenceImagePlanner` 真实交付**：本地确定性规划四色分类 + BR-29 耗时指数 + BR-30 重生成标记，规划结果经 `MapGridModel.EditCell` 落格为 B-11 参考 Die（RD），流程步骤 5 重分类为 `Planned`；真实图像拟合仍属 H06（T-029 搁置）不伪造；**H06 扫描执行/对位离线演算沙盒已在 1.8.0（P6）交付**：`OfflineScanExecutor` 在合成 FOV 上真实运行 B-08 引擎与 H03 对位、结果标注「确定性离线演算、非真实设备」，12 步流程步骤 7/8 标记 `Planned`；**Sinf 导出已在 1.9.0（P7）抽象为可插拔 `ISinfExporter`**：默认内部 CSV（诚实，T-037 待确认），工业字节流为预留实现位（`IndustrialSinfExporter` 抛诚实异常、UI 禁用选项），规范到位即替换、不伪造；**结果导出动作（B-13）已在 H08 落地：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口，首页圆片概览仍消费 `WaferMapRenderer`（绘制规则唯一来自 H05 Core）；
+- 图谱相关 P4 能力：Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩（R-H05-05）已在 1.5.0（P4-A）由独立「Wafer 扫描」页真实交付；**Wafer 扫描 12 步流程（R-H05-04 / B-24）与 Sinf 诚实内部导出（R-H05-06 / BR-50，B-12 唯一实现属 H05）已在 1.6.0（P4-B）交付**——流程编排层真实落地、依赖 H03/H06 的步骤（3~9）诚实 `[搁置]`，Sinf 为自洽内部 CSV 并标注「非工业 Sinf 字节流（T-037 待确认）」，不伪造工业格式；**H03 参考图像（B-09）Golden Die 规划与落格已在 1.7.0（P5）由 Wafer 扫描页接入 `ReferenceImagePlanner` 真实交付**：本地确定性规划四色分类 + BR-29 耗时指数 + BR-30 重生成标记，规划结果经 `MapGridModel.EditCell` 落格为 B-11 参考 Die（RD），流程步骤 5 重分类为 `Planned`；真实图像拟合仍属 H06（T-029 搁置）不伪造；**H06 扫描执行/对位离线演算沙盒已在 1.8.0（P6）交付**：`OfflineScanExecutor` 在合成 FOV 上真实运行 B-08 引擎与 H03 对位、结果标注「确定性离线演算、非真实设备」，12 步流程步骤 7/8 标记 `Planned`；**Sinf 导出已在 1.9.0（P7）抽象为可插拔 `ISinfExporter`**：默认内部 CSV（诚实，T-037 待确认），工业字节流为预留实现位（`IndustrialSinfExporter` 抛诚实异常、UI 禁用选项），规范到位即替换、不伪造；**结果导出动作（B-13）已在 H08 落地：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口，首页圆片概览仍消费 `WaferMapRenderer`（绘制规则唯一来自 H05 Core）；**H06 扫描执行/对位已在 1.10.0（P8）抽象为可插拔 `IScanExecutor`**：默认 `OfflineScanExecutor`（合成 FOV + B-08 引擎 + H03 对位，确定性离线演算）经 `WaferScanViewModel` 装配缝委托，`DeviceScanExecutor` 为预留实现位（T-029/T-035 未闭环时 `Execute` 抛 `DeviceScanNotConfirmedException`、绝不注册生产 `IDeviceGateway`、绝不伪造设备结果），UI 依 T 状态禁用「真实设备扫描」选项；闭环后仅实现 `DeviceScanExecutor` 并切换 `SelectedScanExecutorKind = Device` 即完成真实设备替换，调用方与 UI 不变；
 - MapType 目录仍为内存实现（重启回到种子数据），T-043「多套并存 / 删除保护 / 引用检查」按合理默认实现并显式登记，实机规则待确认；
 - 配套的高保真 HTML 原型不在本仓库内。

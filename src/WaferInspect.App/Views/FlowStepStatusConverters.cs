@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using WaferInspect.Core.Alignment;
 using WaferInspectHMI.Services;
 using WaferInspectHMI.ViewModels.Modules;
 
@@ -69,6 +70,30 @@ public sealed class SinfKindToEnabledConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         => value is SinfExporterKind k && k == SinfExporterKind.Industrial ? false : true;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>ScanExecutorKind → 中文标签（离线默认 / 真实设备待确认）。</summary>
+public sealed class ScanKindToTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is ScanExecutorKind k ? k switch
+        {
+            ScanExecutorKind.Device => "真实设备扫描（T-029/T-035 待确认）",
+            _ => "离线演算（合成 FOV，默认）"
+        } : "离线演算（合成 FOV，默认）";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>ScanExecutorKind → 是否可选（真实设备因 T-029/T-035 待确认而禁用，不伪造）。</summary>
+public sealed class ScanKindToEnabledConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is ScanExecutorKind k && k == ScanExecutorKind.Device ? false : true;
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

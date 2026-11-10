@@ -9,7 +9,7 @@ namespace WaferInspect.App.Tests;
 /// <summary>
 /// P6 增量（1.8.0，H06 扫描执行 / 对位，离线演算沙盒）：
 /// <see cref="OfflineScanExecutor"/> 在合成 FOV 上真实跑 B-08 唯一匹配引擎与 H03 对位服务，
-/// 但 <see cref="OfflineScanReport.IsOffline"/> 恒为 true，不注册生产 IDeviceGateway、不伪造设备结果（E-08/E-10）。
+/// 但 <see cref="ScanReport.IsOffline"/> 恒为 true，不注册生产 IDeviceGateway、不伪造设备结果（E-08/E-10）。
 /// 真实相机采集 / AI 推理属 T-029/T-035 搁置。
 /// </summary>
 public sealed class H06ScanExecutionTests
