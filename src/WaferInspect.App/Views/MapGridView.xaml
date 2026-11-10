@@ -10,9 +10,13 @@
     <Border Background="{StaticResource Surface3}" BorderBrush="{StaticResource LineStrong}"
             BorderThickness="1" CornerRadius="4" Width="400" Height="400">
         <Grid x:Name="CanvasRoot" Width="400" Height="400" Background="Transparent"
-              PreviewMouseLeftButtonDown="CanvasRoot_PreviewMouseLeftButtonDown">
+              PreviewMouseLeftButtonDown="CanvasRoot_PreviewMouseLeftButtonDown"
+              PreviewMouseLeftButtonUp="CanvasRoot_PreviewMouseLeftButtonUp"
+              MouseMove="CanvasRoot_MouseMove">
             <Image x:Name="MapImage" Width="400" Height="400" Stretch="None" IsHitTestVisible="False"
                    HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <Border x:Name="RectOverlay" Visibility="Collapsed" BorderBrush="#1D4FD1" BorderThickness="1.5"
+                    Background="#331D4FD1" HorizontalAlignment="Left" VerticalAlignment="Top"/>
         </Grid>
     </Border>
 </UserControl>

@@ -67,6 +67,7 @@ public partial class App : Application
                     services.AddSingleton<ModuleViewModelBase>(provider =>
                         provider.GetRequiredService<H04InspectionViewModel>());
                     services.AddSingleton<H05MapViewModel>();
+                    services.AddSingleton<WaferScanViewModel>();
                     services.AddSingleton<ModuleViewModelBase>(provider =>
                         provider.GetRequiredService<H05MapViewModel>());
                     services.AddSingleton<ModuleViewModelBase, H06DeviceControlViewModel>();

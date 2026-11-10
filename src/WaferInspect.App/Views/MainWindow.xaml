@@ -658,6 +658,12 @@
                         <views:AnalysisView DataContext="{Binding Analysis}"/>
                     </Grid>
 
+                    <!-- 视图 2f：Wafer 扫描（H05 扫描参数与 Map 编辑工具，P4-A / 1.5.0，PRD 4.5.2 / UI-3.7.3）。
+                         Visibility 留在外层 Grid，内层视图绑定子 ViewModel；Map 绘制复用唯一 MapGridView（B-06）。 -->
+                    <Grid Visibility="{Binding IsWaferScan, Converter={StaticResource BoolVis}}">
+                        <views:WaferScanView DataContext="{Binding WaferScan}"/>
+                    </Grid>
+
                     <!-- 视图 3：告警中心 -->
                     <Border Style="{StaticResource Card}" Visibility="{Binding IsAlarms, Converter={StaticResource BoolVis}}">
                         <Grid>

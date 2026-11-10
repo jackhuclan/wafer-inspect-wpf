@@ -50,7 +50,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（1.4.0）
+## 架构（1.5.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -64,7 +64,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 
 启动链路：`App.OnStartup` → 构建 Host → `host.Start()`（启动数据泵）→ 登录窗口（`LoginWindow`，唯一登录入口）→ 认证成功经 `LoginGate` 校验 → 解析 `MainWindow`（注入 `MainViewModel`）→ `Show()`；取消登录则应用退出。
 
-## Blade 迁移状态（P0 / P1 / P2 已关闭，P3 进行中）
+## Blade 迁移状态（P0 / P1 / P2 已关闭，P3 已关闭，P4-A 已关闭）
 
 P0 基线：4 组 14 项导航，新增「数据分析」(`analysis`) 与「图谱管理」(`maps`)，
 两页均明确标识为尚未迁移的骨架，不展示伪造的历史业务数据。H01~H10 ViewModel 已注册，
@@ -114,7 +114,7 @@ H01 首页 Die 着色改由 MapType 目录唯一供给（B-11）；`MapGridModel
 **P2 其余项（H02~H05 增量 1~5）均已交付**：`AC-H05-04` 的坐标/着色规则唯一来自 H05 Core，
 复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口（无第二份绘制规则）；首页圆片概览仍消费 `WaferMapRenderer`
 （绘制规则同样唯一来自 `MapLevelPalette`，非功能缺口）。**P2 关闭**。`R-H05-04/05/06`（Wafer 扫描 12 步、
-Die 笔刷/批量、Sinf 生成与导出）属 P4/P3，界面显式登记未迁移，不伪造入口。
+Die 笔刷/批量、Sinf 生成与导出）原属 P4/P3；其中 **R-H05-05（Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩）已在 1.5.0（P4-A）由独立「Wafer 扫描」页真实交付**，复用 `MapGridModel`+`MapGridView`（B-06/B-11）；仅 R-H05-04（12 步流程）与 R-H05-06 / BR-50（Sinf 生成与导出）属 P4-B 未迁移，界面显式登记，不伪造入口。
 
 1.2.0 交付 P3 首增量 6（H08 数据分析与人工复判，C-02「数据分析」承载页）：
 `Core/Analysis` 落地 `WaferResult`（F-3.9.2 良率口径）、`WaferResultStore`（B-23 确定性种子 + F-3.9.2-01~02 检索）
@@ -136,6 +136,8 @@ Sinf / Klarf 因 `T-037` 文件格式规范未确认，导出时显式返回 `[T
 GoldenDie / 回溯图 / 复判图搭真实视图框架并诚实标注 `[搁置]`（T-029 图片未接入 / B-09 待 H03 生成）；
 Sinf 生成（`ISinfGenerator`，B-12 / T-037）与 AI 重新推理（`IRecheckService.ReInfer`，R-H08-07 / BR-66 / T-035）
 为**明确不可用入口**，不伪造工业格式 / AI 结果。明细见 [`docs/P3-Migration-Status.md`](docs/P3-Migration-Status.md)。
+
+1.5.0 交付 **P4-A（H05 Wafer 扫描，PRD 4.5.2 / UI-3.7.3）**：新增独立导航项「Wafer 扫描」（Owner H05，位于「设备与配置」分组，与 H08「数据分析」同构）；交付扫描参数（晶圆大小 BR-46 / 扫描速度 BR-47 校验 100–500 / 扩膜 BR-48 / 创建方式 F-3.7.3-09）与 Map 编辑工具——Die 笔刷（F-3.7.3-19）、整行整列（F-3.7.3-20）、矩形批量（F-3.7.3-22）、外扩内缩（F-3.7.3-21/23，R-H05-05）。编辑复用唯一 `MapGridModel`+`MapGridView`（B-06），Bin/颜色唯一来自 `IMapTypeCatalog`（B-11）；直接编辑即时刷新（`NeedsRefresh=false`），与 H08 复判 `Reassign` 的 BR-53「待刷新」语义明确区分。全景图（F-3.7.3-10）诚实 `[搁置]`（H06 采集 T-029 未接入）；12 步流程（R-H05-04）与 Sinf 导出（BR-50 / B-12）属 P4-B 未迁移，登记于 `WaferScanViewModel.DeferredNote`。明细见 [`docs/P4-Migration-Status.md`](docs/P4-Migration-Status.md)。
 
 ## 左侧导航配置
 
@@ -160,6 +162,6 @@ new NavGroupDefinition("system", "系统", /* DefaultExpanded */ false,
 - 数据仍为 1 Hz 模拟数据；良率读取已切换到可替换的 `IDataSource`，检测运行由 `WaferRunController` 模拟推进；
 - 设备连接未接入（T-029 / T-030 待确认）：所有真实设备动作暂被搁置，界面动作以「[搁置] 未下发」日志与提示明确标注，不伪造成功；H04 单幅/全部图片测试与预扫描均为确定性离线演算，AI 推理随 T-035 搁置；
 - ROI 具体算法参数项（T-014）与高级参数行为（T-032）待实机 / 算法文档确认：当前以检测 / 量测 / 全局三组可扩展集合 + 显式标注的占位项保留，未用固定滑块替代；
-- 图谱相关 P3/P4 能力未迁移：Wafer 扫描 12 步流程、Die 笔刷 / 整行整列 / 批量 / 外扩内缩、Sinf 生成（R-H05-04/05/06，B-12 唯一实现属 H05），T-037 文件格式规范待确认；**结果导出动作（B-13）已在 H08 落地：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口，首页圆片概览仍消费 `WaferMapRenderer`（绘制规则唯一来自 H05 Core）；
+- 图谱相关 P4 能力：Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩（R-H05-05）已在 1.5.0（P4-A）由独立「Wafer 扫描」页真实交付；**Wafer 扫描 12 步流程（R-H05-04）与 Sinf 生成（R-H05-06 / BR-50，B-12 唯一实现属 H05）属 P4-B 未迁移**，T-037 文件格式规范待确认；**结果导出动作（B-13）已在 H08 落地：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口，首页圆片概览仍消费 `WaferMapRenderer`（绘制规则唯一来自 H05 Core）；
 - MapType 目录仍为内存实现（重启回到种子数据），T-043「多套并存 / 删除保护 / 引用检查」按合理默认实现并显式登记，实机规则待确认；
 - 配套的高保真 HTML 原型不在本仓库内。

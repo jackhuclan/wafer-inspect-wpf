@@ -1,0 +1,186 @@
+<UserControl x:Class="WaferInspectHMI.Views.WaferScanView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:WaferInspectHMI.ViewModels.Modules"
+             xmlns:views="clr-namespace:WaferInspectHMI.Views"
+             FontFamily="Segoe UI, Microsoft YaHei" FontSize="13">
+    <UserControl.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+        </Style>
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+        <Style x:Key="FieldCombo" TargetType="ComboBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+        <Style x:Key="FieldItem" TargetType="StackPanel">
+            <Setter Property="Margin" Value="0,0,12,8"/>
+        </Style>
+        <Style x:Key="KeyText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Margin="0,0,8,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 扫描参数区（F-3.7.3-01/06/09/15，BR-46/47/48） -->
+            <Border Grid.Row="0" Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,12">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock Text="扫描参数" Style="{StaticResource PanelTitle}" Margin="0,0,12,0"/>
+                        <TextBlock Text="本地配置 · 扫描执行与对位能力属 H06/H03（T-029/T-035）" Style="{StaticResource MetaText}"
+                                   HorizontalAlignment="Right" TextWrapping="Wrap"/>
+                    </DockPanel>
+                    <WrapPanel Margin="0,10,0,0">
+                        <StackPanel Style="{StaticResource FieldItem}">
+                            <TextBlock Text="晶圆大小（BR-46）" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Width="120" Style="{StaticResource FieldCombo}" IsEditable="False"
+                                      ItemsSource="{Binding WaferSizeOptions}" SelectedItem="{Binding WaferSize, Mode=TwoWay}"
+                                      AutomationProperties.AutomationId="ComboWaferSize"/>
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource FieldItem}">
+                            <TextBlock Text="扫描速度（BR-47，100–500）" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Width="120" Style="{StaticResource FieldBox}" Text="{Binding ScanSpeed, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.AutomationId="FieldScanSpeed"/>
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource FieldItem}">
+                            <TextBlock Text="创建方式（F-3.7.3-09）" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Width="170" Style="{StaticResource FieldCombo}" IsEditable="False"
+                                      ItemsSource="{Binding CreateModeOptions}" SelectedItem="{Binding CreateMode, Mode=TwoWay}"
+                                      AutomationProperties.AutomationId="ComboCreateMode"/>
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource FieldItem}">
+                            <TextBlock Text="是否扩膜（BR-48）" Style="{StaticResource FieldLabel}"/>
+                            <CheckBox VerticalAlignment="Center" IsChecked="{Binding ExpandFilm, Mode=TwoWay}"
+                                      Content="切割后扩膜晶圆" AutomationProperties.AutomationId="CheckExpandFilm"/>
+                        </StackPanel>
+                        <Button Content="应用参数" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding ApplyScanParamsCommand}" AutomationProperties.AutomationId="BtnApplyScanParams"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="360"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左：Map 编辑工具（R-H05-05） -->
+                <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,12,0" Padding="12">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="Map 编辑工具（Wafer 扫描，唯一 MapGridView）" Style="{StaticResource PanelTitle}"/>
+                            <TextBlock Text="{Binding RevisionText}" Style="{StaticResource MetaText}" HorizontalAlignment="Right"
+                                       AutomationProperties.AutomationId="ScanRevisionText"/>
+                        </DockPanel>
+                        <views:MapGridView x:Name="MapControl" Model="{Binding Map}"
+                                           BrushBin="{Binding BrushBinDef}" BatchMode="{Binding IsBatchMode}"
+                                           HorizontalAlignment="Left"
+                                           AutomationProperties.AutomationId="ScanMap"/>
+                        <TextBlock Text="{Binding MapStatusText}" Style="{StaticResource KeyText}" Margin="0,8,0,0"
+                                   AutomationProperties.AutomationId="ScanMapStatus"/>
+                        <TextBlock Text="{Binding SelectedDieText}" Style="{StaticResource KeyText}" Margin="0,4,0,0"
+                                   AutomationProperties.AutomationId="ScanSelectedDie"/>
+                        <TextBlock Text="提示：选中笔刷后在 Map 上双击改单个 Die；开启「批量模式」后拖拽框选区域统一改 Bin。"
+                                   Style="{StaticResource KeyText}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button Content="生成 Map 图" Style="{StaticResource PrimaryButton}" Margin="0,0,6,6"
+                                    Command="{Binding GenerateMapCommand}" AutomationProperties.AutomationId="BtnScanGenerateMap"/>
+                            <Button Content="刷新图谱" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding RefreshMapCommand}" AutomationProperties.AutomationId="BtnScanRefreshMap"/>
+                            <Button Content="整行" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding EditRowCommand}" AutomationProperties.AutomationId="BtnScanEditRow"/>
+                            <Button Content="整列" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding EditColumnCommand}" AutomationProperties.AutomationId="BtnScanEditColumn"/>
+                            <Button Content="批量模式" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding ToggleBatchCommand}" AutomationProperties.AutomationId="BtnScanBatchMode"
+                                    ToolTip="开启后在 Map 上拖拽框选区域批量修改"/>
+                            <Button Content="外扩" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding ExpandCommand}" AutomationProperties.AutomationId="BtnScanExpand"/>
+                            <Button Content="内缩" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding ShrinkCommand}" AutomationProperties.AutomationId="BtnScanShrink"/>
+                        </WrapPanel>
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="内缩大小（F-3.7.3-21）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Width="70" Style="{StaticResource FieldBox}" Text="{Binding ShrinkStep, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldShrinkStep"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="X（列）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Width="70" Style="{StaticResource FieldBox}" Text="{Binding JumpX}"
+                                         AutomationProperties.AutomationId="FieldScanJumpX"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="Y（行）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Width="70" Style="{StaticResource FieldBox}" Text="{Binding JumpY}"
+                                         AutomationProperties.AutomationId="FieldScanJumpY"/>
+                            </StackPanel>
+                            <Button Content="X/Y 跳转" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Height="28"
+                                    Command="{Binding JumpToDieCommand}" AutomationProperties.AutomationId="BtnScanJump"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- 右：图谱类型 / 笔刷调色板 / 全景图 -->
+                <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="图谱类型（F-3.7.3-11，B-11 唯一数据源）" Style="{StaticResource PanelTitle}"/>
+                        <ComboBox Margin="0,8,0,10" Style="{StaticResource FieldCombo}" IsEditable="False"
+                                  ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType, Mode=TwoWay}"
+                                  DisplayMemberPath="Display"
+                                  AutomationProperties.AutomationId="ComboScanMapType"/>
+                        <TextBlock Text="笔刷 Bin（双击 / 批量 / 外扩内缩使用的目标 Bin）" Style="{StaticResource PanelTitle}" Margin="0,0,0,6"/>
+                        <ListBox Height="180" ItemsSource="{Binding BrushBins}" SelectedItem="{Binding SelectedBrushBin, Mode=TwoWay}"
+                                 AutomationProperties.AutomationId="ScanBrushBins">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:BrushBinItem}">
+                                    <Border Background="{StaticResource Surface3}" CornerRadius="6" Padding="8" Margin="0,0,0,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Rectangle Width="20" Height="20" Fill="{Binding ColorHex}" Stroke="{StaticResource LineStrong}" StrokeThickness="1"
+                                                       Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding Display}" VerticalAlignment="Center" Style="{StaticResource KeyText}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="全景图（F-3.7.3-10）" Style="{StaticResource PanelTitle}" Margin="0,12,0,6"/>
+                        <Border Background="{StaticResource Surface3}" CornerRadius="6" Padding="12" Height="120">
+                            <TextBlock Text="{Binding PanoramaText}" Style="{StaticResource KeyText}" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" AutomationProperties.AutomationId="ScanPanoramaText"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- 页脚：状态与未迁移登记 -->
+            <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource KeyText}" Margin="0,0,0,6"
+                               AutomationProperties.AutomationId="ScanStatusText"/>
+                    <TextBlock Text="{Binding DeferredNote}" Foreground="{StaticResource Warn}" FontSize="11.5"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

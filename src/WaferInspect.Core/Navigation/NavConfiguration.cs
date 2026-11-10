@@ -43,7 +43,8 @@ public static class NavConfiguration
                 "M5 5h14v14H5z M9 9h6v6H9z M9 2v3 M15 2v3 M9 19v3 M15 19v3 M2 9h3 M2 15h3 M19 9h3 M19 15h3"),
             new NavItemDefinition("recipes", "配方管理", "M4 7h16 M4 12h16 M4 17h16 M9 4v6 M15 10v6"),
             new NavItemDefinition("calibration", "标定与校验", "M12 3l8 3v6h-8V3z M4 12h16v9H4z M9 16h6"),
-            new NavItemDefinition("maps", "图谱管理", "M4 4h16v16H4z M4 10h16 M10 4v16 M15 10l5 5 M15 15h5")
+            new NavItemDefinition("maps", "图谱管理", "M4 4h16v16H4z M4 10h16 M10 4v16 M15 10l5 5 M15 15h5"),
+            new NavItemDefinition("waferscan", "Wafer 扫描", "M12 2a10 10 0 100 20 10 10 0 000-20z M12 6a6 6 0 100 12 6 6 0 000-12z M12 10a2 2 0 100 4 2 2 0 000-4z")
         ]),
         new NavGroupDefinition("system", "系统", false,
         [

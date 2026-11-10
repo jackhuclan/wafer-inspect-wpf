@@ -22,6 +22,33 @@ public partial class MapGridView : UserControl
         new PropertyMetadata(null, OnModelChanged));
 
     private MapGridModel _subscribed;
+    private bool _dragging;
+    private int _dragC0;
+    private int _dragR0;
+
+    /// <summary>Wafer 扫描笔刷：非 null 时双击网格把该 Die 改为本 Bin（F-3.7.3-19）。
+    /// 为 null 时保持原「双击选中」行为（maps 预览 / H08 复判兼容，不破坏既有页面）。</summary>
+    public static readonly DependencyProperty BrushBinProperty = DependencyProperty.Register(
+        nameof(BrushBin), typeof(BinDefinition), typeof(MapGridView), new PropertyMetadata(null));
+
+    public BinDefinition BrushBin
+    {
+        get => (BinDefinition)GetValue(BrushBinProperty);
+        set => SetValue(BrushBinProperty, value);
+    }
+
+    /// <summary>Wafer 扫描矩形批量模式（F-3.7.3-22）：开启后按住左键拖拽框选区域并触发 <see cref="RectSelected"/>。</summary>
+    public static readonly DependencyProperty BatchModeProperty = DependencyProperty.Register(
+        nameof(BatchMode), typeof(bool), typeof(MapGridView), new PropertyMetadata(false));
+
+    public bool BatchMode
+    {
+        get => (bool)GetValue(BatchModeProperty);
+        set => SetValue(BatchModeProperty, value);
+    }
+
+    /// <summary>矩形框选完成事件（批量修改触发），参数为归一化后的四角坐标。</summary>
+    public event EventHandler<RectSelectedEventArgs> RectSelected;
 
     public MapGridView() => InitializeComponent();
 
@@ -107,12 +134,85 @@ public partial class MapGridView : UserControl
 
     private void CanvasRoot_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount != 2 || Model == null) return;
-        var point = e.GetPosition(CanvasRoot);
+        if (Model == null) return;
+        int column = CellAt(e.GetPosition(CanvasRoot), out int row);
+        if (BatchMode)
+        {
+            _dragging = true;
+            _dragC0 = column;
+            _dragR0 = row;
+            ShowOverlay(column, row, column, row);
+            return;
+        }
+        if (e.ClickCount != 2) return;
+        if (BrushBin != null)
+        {
+            // F-3.7.3-19：Die 笔刷直接改图（颜色即时刷新），并同步更新选中格供整行/整列操作。
+            Model.EditCell(column, row, BrushBin);
+            Model.Select(column, row);
+        }
+        else
+        {
+            Model.Select(column, row);   // BR-51：左上角 [0,0]，X=列 Y=行
+        }
+    }
+
+    private void CanvasRoot_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_dragging || Model == null) return;
+        int column = CellAt(e.GetPosition(CanvasRoot), out int row);
+        ShowOverlay(_dragC0, _dragR0, column, row);
+    }
+
+    private void CanvasRoot_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_dragging || Model == null) return;
+        _dragging = false;
+        int column = CellAt(e.GetPosition(CanvasRoot), out int row);
+        if (RectOverlay != null) RectOverlay.Visibility = Visibility.Collapsed;
+        RectSelected?.Invoke(this, new RectSelectedEventArgs(
+            Math.Min(_dragC0, column), Math.Min(_dragR0, row),
+            Math.Max(_dragC0, column), Math.Max(_dragR0, row)));
+    }
+
+    private int CellAt(Point point, out int row)
+    {
         double cellWidth = Size / (double)Math.Max(1, Model.Columns);
         double cellHeight = Size / (double)Math.Max(1, Model.Rows);
-        int column = (int)Math.Floor(point.X / cellWidth);
-        int row = (int)Math.Floor(point.Y / cellHeight);
-        Model.Select(column, row);   // BR-51：左上角 [0,0]，X=列 Y=行
+        int column = Clamp((int)Math.Floor(point.X / cellWidth), 0, Model.Columns - 1);
+        row = Clamp((int)Math.Floor(point.Y / cellHeight), 0, Model.Rows - 1);
+        return column;
     }
+
+    private static int Clamp(int value, int min, int max)
+        => value < min ? min : value > max ? max : value;
+
+    private void ShowOverlay(int c0, int r0, int c1, int r1)
+    {
+        if (Model == null || RectOverlay == null) return;
+        double cellWidth = Size / (double)Math.Max(1, Model.Columns);
+        double cellHeight = Size / (double)Math.Max(1, Model.Rows);
+        double x0 = Math.Min(c0, c1) * cellWidth;
+        double y0 = Math.Min(r0, r1) * cellHeight;
+        double x1 = (Math.Max(c0, c1) + 1) * cellWidth;
+        double y1 = (Math.Max(r0, r1) + 1) * cellHeight;
+        RectOverlay.Margin = new Thickness(x0, y0, 0, 0);
+        RectOverlay.Width = x1 - x0;
+        RectOverlay.Height = y1 - y0;
+        RectOverlay.Visibility = Visibility.Visible;
+    }
+}
+
+/// <summary>矩形框选完成参数（已归一化）。</summary>
+public sealed class RectSelectedEventArgs : EventArgs
+{
+    public RectSelectedEventArgs(int c0, int r0, int c1, int r1)
+    {
+        C0 = c0; R0 = r0; C1 = c1; R1 = r1;
+    }
+
+    public int C0 { get; }
+    public int R0 { get; }
+    public int C1 { get; }
+    public int R1 { get; }
 }

@@ -271,6 +271,188 @@ public sealed class MapGridModel
         return true;
     }
 
+    /// <summary>
+    /// Wafer 扫描 · Die 笔刷（F-3.7.3-19）：双击网格直接把该 Die 改判为指定 Bin。
+    /// 与 H08 复判的 <see cref="Reassign"/> 不同——这是用户对 Map 的**直接编辑**，颜色**立即**更新
+    /// （不触发 BR-53 的「复判后待刷新」语义，BR-53 仅约束 H08 人工复判）。
+    /// </summary>
+    public bool EditCell(int column, int row, BinDefinition bin)
+    {
+        ArgumentNullException.ThrowIfNull(bin);
+        var cell = Cells.FirstOrDefault(c => c.Column == column && c.Row == row);
+        if (cell == null)
+        {
+            StatusText = $"网格 {FormatCoordinate(column, row)} 不存在（请先生成 Map 图）";
+            Raise();
+            return false;
+        }
+        var list = Cells.ToList();
+        int at = list.FindIndex(c => c.Column == column && c.Row == row);
+        list[at] = cell with { Kind = bin.Kind, Code = bin.Code, Level = bin.Level, ColorHex = bin.ColorHex, Label = bin.Name };
+        Cells = list;
+        NeedsRefresh = false;
+        StatusText = $"Die 笔刷：{cell.Coordinate} → {bin.Code}（{bin.Name}）；颜色已即时更新";
+        Raise();
+        return true;
+    }
+
+    /// <summary>Wafer 扫描 · 整行编辑（F-3.7.3-20）：把指定行的全部网格改为某 Bin。</summary>
+    public bool EditRow(int row, BinDefinition bin)
+    {
+        ArgumentNullException.ThrowIfNull(bin);
+        if (Cells.Count == 0)
+        {
+            StatusText = "请先生成 Map 图（BR-45）";
+            Raise();
+            return false;
+        }
+        var list = Cells.ToList();
+        int n = 0;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].Row != row) continue;
+            list[i] = list[i] with { Kind = bin.Kind, Code = bin.Code, Level = bin.Level, ColorHex = bin.ColorHex, Label = bin.Name };
+            n++;
+        }
+        Cells = list;
+        NeedsRefresh = false;
+        StatusText = $"整行编辑：第 {row} 行共 {n} 颗 Die → {bin.Code}（{bin.Name}）";
+        Raise();
+        return true;
+    }
+
+    /// <summary>Wafer 扫描 · 整列编辑（F-3.7.3-20）：把指定列的全部网格改为某 Bin。</summary>
+    public bool EditColumn(int column, BinDefinition bin)
+    {
+        ArgumentNullException.ThrowIfNull(bin);
+        if (Cells.Count == 0)
+        {
+            StatusText = "请先生成 Map 图（BR-45）";
+            Raise();
+            return false;
+        }
+        var list = Cells.ToList();
+        int n = 0;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].Column != column) continue;
+            list[i] = list[i] with { Kind = bin.Kind, Code = bin.Code, Level = bin.Level, ColorHex = bin.ColorHex, Label = bin.Name };
+            n++;
+        }
+        Cells = list;
+        NeedsRefresh = false;
+        StatusText = $"整列编辑：第 {column} 列共 {n} 颗 Die → {bin.Code}（{bin.Name}）";
+        Raise();
+        return true;
+    }
+
+    /// <summary>Wafer 扫描 · 矩形批量（F-3.7.3-22）：把归一化后的矩形区域内全部网格改为某 Bin。</summary>
+    public bool EditRect(int c0, int r0, int c1, int r1, BinDefinition bin)
+    {
+        ArgumentNullException.ThrowIfNull(bin);
+        if (Cells.Count == 0)
+        {
+            StatusText = "请先生成 Map 图（BR-45）";
+            Raise();
+            return false;
+        }
+        int minC = Math.Min(c0, c1);
+        int maxC = Math.Max(c0, c1);
+        int minR = Math.Min(r0, r1);
+        int maxR = Math.Max(r0, r1);
+        var list = Cells.ToList();
+        int n = 0;
+        for (int i = 0; i < list.Count; i++)
+        {
+            var cell = list[i];
+            if (cell.Column < minC || cell.Column > maxC || cell.Row < minR || cell.Row > maxR) continue;
+            list[i] = cell with { Kind = bin.Kind, Code = bin.Code, Level = bin.Level, ColorHex = bin.ColorHex, Label = bin.Name };
+            n++;
+        }
+        Cells = list;
+        NeedsRefresh = false;
+        StatusText = $"批量修改：矩形 [{minC},{minR}]~[{maxC},{maxR}] 共 {n} 颗 Die → {bin.Code}（{bin.Name}）";
+        Raise();
+        return true;
+    }
+
+    /// <summary>
+    /// Wafer 扫描 · 外扩 / 内缩（F-3.7.3-21/23）：以 <paramref name="target"/> 的 Kind 为基准区域，
+    /// 按 <paramref name="step"/> 步进做形态学膨胀 / 腐蚀。外扩把相邻未匹配网格并入 GoodDie 区域；
+    /// 内缩把边界网格回退为 <paramref name="shrinkTarget"/>（如 BlankDie）。这是纯本地几何操作，
+    /// 不伪造 H03 对位 / H06 扫描结果（E-08 / T-029 / T-035）。
+    /// </summary>
+    public bool ExpandShrink(string mode, BinDefinition target, BinDefinition shrinkTarget, int step)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(shrinkTarget);
+        if (Cells.Count == 0)
+        {
+            StatusText = "请先生成 Map 图（BR-45）";
+            Raise();
+            return false;
+        }
+        if (step < 1) step = 1;
+        bool expand = string.Equals(mode, "expand", StringComparison.OrdinalIgnoreCase);
+        var list = Cells.ToList();
+        for (int s = 0; s < step; s++)
+        {
+            if (expand)
+            {
+                var adds = new List<int>();
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i].Kind == target.Kind) continue;
+                    if (HasTargetNeighbor(list, i, target.Kind)) adds.Add(i);
+                }
+                foreach (var i in adds)
+                    list[i] = list[i] with { Kind = target.Kind, Code = target.Code, Level = target.Level, ColorHex = target.ColorHex, Label = target.Name };
+            }
+            else
+            {
+                var removes = new List<int>();
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i].Kind != target.Kind) continue;
+                    if (HasNonTargetNeighbor(list, i, target.Kind)) removes.Add(i);
+                }
+                foreach (var i in removes)
+                    list[i] = list[i] with { Kind = shrinkTarget.Kind, Code = shrinkTarget.Code, Level = shrinkTarget.Level, ColorHex = shrinkTarget.ColorHex, Label = shrinkTarget.Name };
+            }
+        }
+        Cells = list;
+        NeedsRefresh = false;
+        StatusText = expand
+            ? $"外扩完成：以「{target.Name}」为基准的区域已向外扩展 {step} 步（本地几何操作）"
+            : $"内缩完成：以「{target.Name}」为基准的区域已向内收缩 {step} 步（本地几何操作）";
+        Raise();
+        return true;
+    }
+
+    private static bool HasTargetNeighbor(IReadOnlyList<MapGridCell> list, int index, BinKind kind)
+    {
+        var c = list[index];
+        return NeighborIs(list, c.Column - 1, c.Row, kind)
+            || NeighborIs(list, c.Column + 1, c.Row, kind)
+            || NeighborIs(list, c.Column, c.Row - 1, kind)
+            || NeighborIs(list, c.Column, c.Row + 1, kind);
+    }
+
+    private static bool HasNonTargetNeighbor(IReadOnlyList<MapGridCell> list, int index, BinKind kind)
+    {
+        var c = list[index];
+        return NeighborIsNot(list, c.Column - 1, c.Row, kind)
+            || NeighborIsNot(list, c.Column + 1, c.Row, kind)
+            || NeighborIsNot(list, c.Column, c.Row - 1, kind)
+            || NeighborIsNot(list, c.Column, c.Row + 1, kind);
+    }
+
+    private static bool NeighborIs(IReadOnlyList<MapGridCell> list, int col, int row, BinKind kind)
+        => list.Any(x => x.Column == col && x.Row == row && x.Kind == kind);
+
+    private static bool NeighborIsNot(IReadOnlyList<MapGridCell> list, int col, int row, BinKind kind)
+        => list.Any(x => x.Column == col && x.Row == row && x.Kind != kind);
+
     private void Raise() => Changed?.Invoke(this, EventArgs.Empty);
 
     private void RebuildCells(IMapTypeCatalog catalog, string mapTypeId)

@@ -17,7 +17,7 @@ public sealed class NavigationConfigurationTests
             Assert.False(string.IsNullOrWhiteSpace(group.Title));
             Assert.NotEmpty(group.Items);
         });
-        Assert.Equal(14, groups.Sum(group => group.Items.Count));
+        Assert.Equal(15, groups.Sum(group => group.Items.Count));
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public sealed class NavigationConfigurationTests
             .OrderBy(key => key, StringComparer.Ordinal);
 
         Assert.Equal(navigationKeys, pageKeys);
-        Assert.Equal(14, Nav.PageConfiguration.Pages.Count);
-        Assert.Equal(14, Nav.PageConfiguration.Pages.Select(page => page.Key).Distinct().Count());
+        Assert.Equal(15, Nav.PageConfiguration.Pages.Count);
+        Assert.Equal(15, Nav.PageConfiguration.Pages.Select(page => page.Key).Distinct().Count());
     }
 
     [Fact]
