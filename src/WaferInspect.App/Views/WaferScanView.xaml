@@ -32,11 +32,13 @@
         </Style>
         <views:FlowStepStatusToTextConverter x:Key="FlowStepStatusToText"/>
         <views:FlowStepStatusToBrushConverter x:Key="FlowStepStatusToBrush"/>
+        <views:BoolToCnConverter x:Key="BoolToCn"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <Grid Margin="0,0,8,0">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -268,6 +270,117 @@
                             </StackPanel>
                         </Border>
                     </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- H03 参考图像（Golden Die 规划，B-09，P5 1.7.0）：本地确定性规划与落格，真实拟合属 H06（T-029 搁置） -->
+            <Border Grid.Row="4" Style="{StaticResource Card}" Padding="14,10" Margin="0,12,0,0">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock Text="H03 参考图像（Golden Die 规划，B-09）" Style="{StaticResource PanelTitle}" Margin="0,0,12,0"/>
+                        <TextBlock Text="真实图像拟合属 H06（T-029 搁置，未伪造）" Style="{StaticResource MetaText}"
+                                   HorizontalAlignment="Right" TextWrapping="Wrap"/>
+                    </DockPanel>
+
+                    <WrapPanel Margin="0,0,0,10">
+                        <StackPanel Style="{StaticResource FieldItem}">
+                            <TextBlock Text="参考 Die 数量（F-3.2.2-67）" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Width="120" Style="{StaticResource FieldBox}" Text="{Binding ReferenceDieCount, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.AutomationId="FieldRefDieCount"/>
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource FieldItem}">
+                            <TextBlock Text="视野缩放 FOV（0~10，BR-30）" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Width="120" Style="{StaticResource FieldBox}" Text="{Binding FovZoom, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.AutomationId="FieldFovZoom"/>
+                        </StackPanel>
+                        <Button Content="生成 Golden Die 规划" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding PlanGoldenDieCommand}" AutomationProperties.AutomationId="BtnPlanGoldenDie"/>
+                        <Button Content="调整 FOV 重规划" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding ChangeFovZoomCommand}" AutomationProperties.AutomationId="BtnChangeFov"
+                                ToolTip="BR-30：修改 FOV 后重新规划并标记 NeedsRegeneration"/>
+                        <Button Content="标记手动调整" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding MarkManualAdjustCommand}" AutomationProperties.AutomationId="BtnMarkManualAdjust"
+                                ToolTip="F-3.2.2-64/66：FOV 图谱手动调整（保留已规划点位）"/>
+                        <Button Content="应用规划到 Map（落格 RD）" VerticalAlignment="Bottom" Height="28"
+                                Command="{Binding ApplyGoldenDieToMapCommand}" AutomationProperties.AutomationId="BtnApplyGoldenDie"
+                                ToolTip="把规划出的参考 Die 落格为 B-11 参考 Die（RD）">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasGoldenPlan}" Value="False">
+                                            <Setter Property="IsEnabled" Value="False"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </WrapPanel>
+
+                    <Border Background="{StaticResource Surface3}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="规划结果（B-09，本地确定性）" Style="{StaticResource PanelTitle}" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="参考 Die（绿）：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.GreenCount, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="待检测 Die（黄）：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.YellowCount, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="预聚焦（蓝）：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.BlueCount, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="参考 Die（红）：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.RedCount, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="耗时指数 BR-29：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.EstimatedCostIndex, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="当前 FOV：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.FovZoom, FallbackValue=0}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="需重生成 BR-30：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.NeedsRegeneration, Converter={StaticResource BoolToCn}, FallbackValue=否}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="手动调整 F-3.2.2-64/66：" Style="{StaticResource KeyText}" Width="120"/>
+                                        <TextBlock Text="{Binding GoldenPlan.ManualAdjusted, Converter={StaticResource BoolToCn}, FallbackValue=否}" Style="{StaticResource KeyText}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="规划出的参考 Die 坐标（前若干项）：" Style="{StaticResource FieldLabel}" Margin="0,10,0,4"/>
+                            <ItemsControl ItemsSource="{Binding GoldenReferenceDieTexts}" MaxHeight="96">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource Surface2}" CornerRadius="4" Padding="6,3" Margin="0,0,6,6">
+                                            <TextBlock Text="{Binding}" Style="{StaticResource KeyText}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="诚实边界：真实参考图像采集 / 拟合属 H06（设备连接 T-029 搁置）。本面板仅在本地确定性规划参考 Die 与四色分类、并落格为 RD，不做任何图像采集 / 拟合，不伪造设备结果（E-08 / E-10）。"
+                               Foreground="{StaticResource Warn}" FontSize="11.5" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
         </Grid>

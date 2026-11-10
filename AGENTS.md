@@ -82,7 +82,7 @@ src/WaferInspect.Core/
 │                             MapFileImporter（TXT/CSV，XML/SINF 显式未接入）、IJobRepository（CRUD + 名称唯一）、
 │                             SubRecipeModels/SubRecipeWizard/SubRecipeRepository（T-005 字段、T-042 七步、B-25 门禁、BR-19 可重入）
 ├─ Alignment/                 H03 对位域：TemplateMatchingEngine（B-08 唯一实现）、SyntheticFovImage、
-│                             LightCalibrationAnalyzer、MarkAlignmentService、ReferenceImagePlanner、MapGridState
+│                             LightCalibrationAnalyzer、MarkAlignmentService、ReferenceImagePlanner（B-09 规划 1.7.0 已接入 Wafer 扫描页并落格）、MapGridState
 ├─ Inspection/                H04 检测配置域：IRoiScanAreaStore + RoiScanAreaStore（B-01/B-02 唯一数据源、
 │                             AC-P2-03）、InspectionModels（ROI/扫描区域/抽检/可扩展参数/T-014）、
 │                             InspectionValidator（F-3.2.2-75 / BR-37~41）
@@ -210,7 +210,7 @@ H03/H04 网格坐标、H08 复判快捷键一律订阅 `Changed` 或调用 `Colo
 禁止任何页面自建颜色表或快捷键映射。`MapGridModel` 是 `[列,行]` 坐标换算与 Bin 着色的唯一实现，
 `FormatDieCoordinate` 负责 1-based Die 行列 → 0-based 显示坐标，界面不得自行 `-1`。
 生成 Map 图必须先有图谱文件（BR-45）；复判后不点刷新颜色不变（BR-53），`MapGridModel.Refresh`
-是唯一显式刷新入口。`R-H05-04`（12 步流程）已在 1.6.0（P4-B）由 `ScanFlowStep` 编排真实交付，依赖 H03/H06 的步骤（3~9）诚实 `[搁置]`（不伪造设备/算法结果，E-08/E-10）；`R-H05-06`（Sinf）已在 1.6.0 交付**诚实内部导出**（自洽 CSV，文件头明确标注「非工业 Sinf 字节流，T-037 待确认」），不得伪造工业格式 / 设备入口；
+是唯一显式刷新入口。`R-H05-04`（12 步流程）已在 1.6.0（P4-B）由 `ScanFlowStep` 编排真实交付，依赖 H03/H06 的步骤（3~9）诚实 `[搁置]`（不伪造设备/算法结果，E-08/E-10）；`R-H05-06`（Sinf）已在 1.6.0 交付**诚实内部导出**（自洽 CSV，文件头明确标注「非工业 Sinf 字节流，T-037 待确认」），不得伪造工业格式 / 设备入口；`R-H03`（H03 参考图像 / B-09）已在 1.7.0（P5）由 Wafer 扫描页接入 `ReferenceImagePlanner` 真实交付：本地确定性规划四色分类 + BR-29 耗时指数 + BR-30 重生成标记，规划参考 Die 经 `MapGridModel.EditCell` 落格为 B-11 ReferenceDie（RD），流程步骤 5 重分类 `Planned`（设备执行仍搁置 B-10/T-029），真实拟合属 H06（T-029）不伪造（E-08/E-10）。
 `R-H05-05`（Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩）已在 1.5.0（P4-A）由独立「Wafer 扫描」页真实交付，
 复用 `MapGridModel`+`MapGridView`（B-06），不得另起第二份绘制规则。`AC-H05-04` 的复判全景 Map 已在 1.2.0
 复用 `MapGridView` 收口（坐标/着色规则唯一来自 H05 Core，无第二份绘制规则），首页圆片概览仍消费 `WaferMapRenderer`

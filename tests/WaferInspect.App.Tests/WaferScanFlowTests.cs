@@ -77,7 +77,11 @@ public sealed class WaferScanFlowTests
 
         vm.RunFlowCommand.Execute(null);
 
-        Assert.All(vm.FlowSteps.Where(s => !s.Deliverable), s => Assert.Equal(FlowStepStatus.Deferred, s.Status));
+        // 依赖 H03/H06 的步骤（3/4/6/7/8/9）仍诚实搁置；步骤 5（搜索圆规划）现可由 H03 参考图像
+        // 在本地规划 → 标记为 Planned（P5，B-09），不再是 Deferred。
+        Assert.All(vm.FlowSteps.Where(s => !s.Deliverable && s.StepNo != 5),
+            s => Assert.Equal(FlowStepStatus.Deferred, s.Status));
+        Assert.Equal(FlowStepStatus.Planned, vm.FlowSteps.First(s => s.StepNo == 5).Status);
         Assert.Contains("诚实搁置", vm.FlowStatusText);
     }
 

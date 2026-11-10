@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WaferInspect.Core.Alignment;
 using WaferInspect.Core.Maps;
 using WaferInspectHMI.Models;
 
@@ -21,6 +22,7 @@ public sealed partial class WaferScanViewModel : ObservableBase
     private readonly IMapTypeCatalog _catalog;
     private readonly MapGridModel _map = new();
     private readonly IH05DialogService _dialogs;
+    private readonly ReferenceImagePlanner _planner = new();
     private string _currentMapTypeId = string.Empty;
 
     public WaferScanViewModel(IMapTypeCatalog catalog, IH05DialogService dialogs)
@@ -71,8 +73,9 @@ public sealed partial class WaferScanViewModel : ObservableBase
         "本地步（1 创建方式 / 2 选图谱 / 10 Die 笔刷 / 11 Ink·ReferenceDie / 12 Sinf 内部导出）真实完成；" +
         "Ink 墨点（BR-49）为本地 Die 元数据，ReferenceDie 已是 B-11 笔刷；" +
         "Sinf 导出为诚实内部表示（非工业字节流，T-037 待确认）。" +
-        "[诚实搁置] 步骤 3~9 依赖 H03 对位 / H06 扫描执行（T-029 / T-035）：选模板 / 矩形 ROI / 匹配搜索圆 / 锁定 / 灰度+Die 匹配 / 降分重试 / 填充未匹配，" +
-        "均仅登记不伪造设备/算法结果（E-08 / E-10）。";
+        "[诚实搁置] 步骤 3~9 依赖 H03 对位 / H06 扫描执行（T-029 / T-035）：选模板 / 矩形 ROI / 锁定 / 灰度+Die 匹配 / 降分重试 / 填充未匹配，" +
+        "均仅登记不伪造设备/算法结果（E-08 / E-10）。" +
+        "[P5·已交付] H03 参考图像（B-09）Golden Die 规划与落格已在本地真实落地：步骤 5 的搜索圆规划点位现可由 ReferenceImagePlanner 本地生成并标记「规划完成（Planned）」，真实搜索仍依赖 B-10/T-029 搁置。";
 
     partial void OnSelectedTypeChanged(MapTypeRow value) => LoadBrushBins();
 
@@ -213,13 +216,31 @@ public sealed partial class WaferScanViewModel : ObservableBase
     [ObservableProperty] private bool _isInkMode;
     [ObservableProperty] private string _flowStatusText = "请选择左侧步骤查看说明，或点击「运行全流程」逐条执行（诚实标记依赖步）";
 
+    /* ---------------- H03 参考图像（Golden Die 规划，B-09，P5 1.7.0） ----------------
+       真实图像拟合属 H06（T-029 搁置）；本段仅做本地确定性规划与落格，不伪造采集结果（E-08/E-10）。 */
+
+    /// <summary>参考 Die 数量（F-3.2.2-67，确定性等距散布；BR-29 耗时随其单调增加）。</summary>
+    [ObservableProperty] private int _referenceDieCount = 5;
+
+    /// <summary>视野缩放 FOV Zoom（0~10，F-3.2.2-62 / BR-30：修改后需重新生成）。</summary>
+    [ObservableProperty] private double _fovZoom = 1.0;
+
+    /// <summary>当前 Golden Die 规划结果（<see cref="ReferenceImagePlanner"/> 本地确定性生成）。</summary>
+    [ObservableProperty] private GoldenDiePlan _goldenPlan;
+
+    /// <summary>是否已生成规划（用于启用「应用落格」）。</summary>
+    [ObservableProperty] private bool _hasGoldenPlan;
+
+    /// <summary>规划出的参考 Die 坐标文本（前若干项），供 UI 列表展示。</summary>
+    [ObservableProperty] private ObservableCollection<string> _goldenReferenceDieTexts = new();
+
     private void InitFlowSteps()
     {
         FlowSteps.Add(new ScanFlowStep(1, "选创建方式", "H05", true));
         FlowSteps.Add(new ScanFlowStep(2, "选图谱类型并生成 Map", "H05", true));
         FlowSteps.Add(new ScanFlowStep(3, "选 GoodDie Bin 并创建模板", "H03", false, "模板创建依赖 H03 对位（T-029/T-035）"));
         FlowSteps.Add(new ScanFlowStep(4, "调整矩形 ROI", "H03", false, "矩形 ROI 依赖 H03 对位（T-029）"));
-        FlowSteps.Add(new ScanFlowStep(5, "显示并调整匹配搜索圆", "H03", false, "匹配搜索圆依赖 H03 对位能力（B-10 / T-029）"));
+        FlowSteps.Add(new ScanFlowStep(5, "显示并调整匹配搜索圆", "H03", false, "搜索圆规划点位现可由 H03 参考图像在本地生成（B-09，P5）；真实搜索仍依赖 H03 对位（B-10/T-029）搁置"));
         FlowSteps.Add(new ScanFlowStep(6, "锁定", "H03", false, "锁定依赖 H03 对位（T-029）"));
         FlowSteps.Add(new ScanFlowStep(7, "灰度模板 + Die 匹配", "H03/H06", false, "灰度模板与 Die 匹配依赖 H03/H06 扫描执行（T-029/T-035）"));
         FlowSteps.Add(new ScanFlowStep(8, "降低匹配分数重试", "H03", false, "匹配分数重试依赖 H03 对位（T-035）"));
@@ -270,6 +291,15 @@ public sealed partial class WaferScanViewModel : ObservableBase
                 GenerateMap();
                 MarkStepDone(step);
                 break;
+            case 5:
+                PlanGoldenDie();
+                if (HasGoldenPlan) MarkStepPlanned(step);
+                else
+                {
+                    StatusText = $"[规划未完成] 步骤 {step.StepNo}「{step.Title}」需先生成 Map 图（BR-45）后再规划（E-08/E-10）";
+                    step.Status = FlowStepStatus.Deferred;
+                }
+                break;
             case 10:
                 if (BrushBinDef != null && _map.Selected != null)
                 {
@@ -318,6 +348,123 @@ public sealed partial class WaferScanViewModel : ObservableBase
     {
         step.Status = FlowStepStatus.Done;
         FlowStatusText = $"步骤 {step.StepNo} 已完成：{step.Title}";
+    }
+
+    private void MarkStepPlanned(ScanFlowStep step)
+    {
+        step.Status = FlowStepStatus.Planned;
+        FlowStatusText = $"步骤 {step.StepNo} 规划完成（本地）：{step.Title}；设备执行仍搁置（E-08/E-10）";
+    }
+
+    /* ---------------- H03 参考图像（Golden Die 规划与落格，B-09，P5 1.7.0） ---------------- */
+
+    /// <summary>
+    /// F-3.2.2-60~67 / B-09：调用 <see cref="ReferenceImagePlanner"/> 在本地确定性生成 Golden Die 规划
+    /// （参考 Die 等距散布、四色分类计数、BR-29 耗时指数）。需在已生成 Map 图后进行（依赖 cols/rows）。
+    /// 真实图像拟合属 H06（T-029 搁置），此处不伪造采集（E-08/E-10）。
+    /// </summary>
+    [RelayCommand]
+    private void PlanGoldenDie()
+    {
+        if (_map.Cells.Count == 0)
+        {
+            StatusText = "生成 Golden Die 规划失败：请先生成 Map 图（BR-45）";
+            return;
+        }
+        if (ReferenceDieCount < 0)
+        {
+            StatusText = "参考 Die 数量不能为负（F-3.2.2-67）";
+            return;
+        }
+        if (ReferenceDieCount > _map.Columns * _map.Rows)
+        {
+            StatusText = $"参考 Die 数量（{ReferenceDieCount}）超过可用 Die 总数（{_map.Columns * _map.Rows}）（F-3.2.2-67）";
+            return;
+        }
+        if (FovZoom is <= 0 or > 10)
+        {
+            StatusText = "视野缩放（FOV）必须在 0~10 之间（F-3.2.2-62）";
+            return;
+        }
+
+        var plan = _planner.Plan(_map.Columns, _map.Rows, ReferenceDieCount, FovZoom);
+        GoldenPlan = plan;
+        HasGoldenPlan = true;
+        GoldenReferenceDieTexts = new ObservableCollection<string>(
+            plan.ReferenceDies.Select(d => $"R{d.Row} · C{d.Col}"));
+        StatusText = $"已生成 Golden Die 规划（B-09）：参考 {plan.GreenCount} 颗 · 待检测 {plan.YellowCount} · " +
+                     $"预聚焦 {plan.BlueCount} · 耗时指数 {plan.EstimatedCostIndex}（BR-29）；" +
+                     $"真实图像拟合仍属 H06（T-029 搁置，未伪造）";
+    }
+
+    /// <summary>
+    /// 把规划出的参考 Die 落格为 B-11「参考 Die（RD）」Bin（经由 <see cref="MapGridModel.EditCell"/>，
+    /// 唯一绘制规则 B-06）。这是真实、本地的确定性操作，可交付（与步骤 11 设 ReferenceDie 一致）。
+    /// </summary>
+    [RelayCommand]
+    private void ApplyGoldenDieToMap()
+    {
+        if (!HasGoldenPlan || GoldenPlan == null)
+        {
+            StatusText = "请先「生成 Golden Die 规划」再落格";
+            return;
+        }
+        if (_map.Cells.Count == 0)
+        {
+            StatusText = "落格失败：请先生成 Map 图（BR-45）";
+            return;
+        }
+        var type = _catalog.Find(_currentMapTypeId);
+        if (type == null) type = _catalog.Find(SelectedType?.Id ?? string.Empty);
+        if (type == null)
+        {
+            StatusText = "落格失败：当前图谱类型不存在";
+            return;
+        }
+        var rd = type.Bins.FirstOrDefault(b => b.Kind == BinKind.ReferenceDie);
+        if (rd == null)
+        {
+            StatusText = "落格失败：当前图谱类型不含 ReferenceDie Bin（B-11）";
+            return;
+        }
+        int n = 0;
+        foreach (var d in GoldenPlan.ReferenceDies)
+            if (_map.EditCell(d.Col, d.Row, rd)) n++;
+        StatusText = $"已将规划出的 {GoldenPlan.ReferenceDies.Count} 颗参考 Die 落格为 RD（参考）：成功 {n} 颗（B-09 · B-06 · B-11）";
+    }
+
+    /// <summary>BR-30 / F-3.2.2-62：修改 FOV 缩放后重新规划，并标记 <see cref="GoldenDiePlan.NeedsRegeneration"/>。</summary>
+    [RelayCommand]
+    private void ChangeFovZoom()
+    {
+        if (GoldenPlan == null)
+        {
+            StatusText = "请先生成 Golden Die 规划，再调整 FOV 重规划（BR-30）";
+            return;
+        }
+        if (FovZoom is <= 0 or > 10)
+        {
+            StatusText = "视野缩放（FOV）必须在 0~10 之间（F-3.2.2-62）";
+            return;
+        }
+        var updated = _planner.ChangeFovZoom(GoldenPlan, FovZoom);
+        GoldenPlan = updated;
+        StatusText = updated.NeedsRegeneration
+            ? $"FOV 已调整为 {FovZoom}：规划需重新生成（BR-30，NeedsRegeneration=true）"
+            : $"FOV 仍为 {FovZoom}：未变化，无需重新生成";
+    }
+
+    /// <summary>F-3.2.2-64/66：Golden 生成效果欠佳 → FOV 图谱手动调整（标记，不删除已规划点位）。</summary>
+    [RelayCommand]
+    private void MarkManualAdjust()
+    {
+        if (GoldenPlan == null)
+        {
+            StatusText = "请先生成 Golden Die 规划，再标记手动调整（F-3.2.2-64/66）";
+            return;
+        }
+        GoldenPlan = _planner.MarkManualAdjusted(GoldenPlan);
+        StatusText = "已标记 FOV 图谱手动调整（F-3.2.2-64/66）：保留已规划点位，待人工微调 Golden 效果";
     }
 
     [RelayCommand]

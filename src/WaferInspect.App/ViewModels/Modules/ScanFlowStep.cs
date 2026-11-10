@@ -38,7 +38,7 @@ public sealed partial class ScanFlowStep : ObservableObject
     /// <summary>可交付但需诚实标注的出口说明（如 Sinf 内部导出 vs 工业字节流）。</summary>
     public string ExportNote { get; }
 
-    /// <summary>运行状态：待执行 / 已完成 / 搁置（可通知 UI 刷新徽标）。</summary>
+    /// <summary>运行状态：待执行 / 已完成 / 规划完成（本地）/ 搁置（可通知 UI 刷新徽标）。</summary>
     [ObservableProperty]
     private FlowStepStatus _status = FlowStepStatus.Pending;
 }
@@ -51,6 +51,13 @@ public enum FlowStepStatus
 
     /// <summary>本增量已真实执行（纯本地步骤）。</summary>
     Done,
+
+    /// <summary>
+    /// 本地规划已完成，但设备执行仍搁置。用于 H03 参考图像（B-09）等
+    /// 其规划点位可由本地确定性逻辑真实给出、而真实对位/采集（B-10/T-029/T-035）尚未接入的步骤，
+    /// 以诚实区分「规划可交付」与「设备执行待接入」（E-08 / E-10）。
+    /// </summary>
+    Planned,
 
     /// <summary>依赖 H03/H06 未接入，诚实搁置（不伪造设备能力）。</summary>
     Deferred
