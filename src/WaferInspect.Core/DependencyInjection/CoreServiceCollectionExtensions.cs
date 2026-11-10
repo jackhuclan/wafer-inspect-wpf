@@ -4,6 +4,7 @@ using WaferInspect.Core.Devices;
 using WaferInspect.Core.Events;
 using WaferInspect.Core.Maps;
 using WaferInspect.Core.Navigation;
+using WaferInspect.Core.Recipes;
 using WaferInspect.Core.Run;
 using WaferInspect.Core.Security;
 using WaferInspect.Core.Simulation;
@@ -30,6 +31,11 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<ManualLoadSequencer>();
         // P1：模拟 Job 清单；H02 配方库（P2）就绪后替换为真实 IJobCatalog 实现。
         services.AddSingleton<IJobCatalog, SimulatedJobCatalog>();
+
+        // P2（H02）：Job 仓库、Map 导入与 MapType 目录；H05 是 MapType 的唯一 Owner。
+        services.AddSingleton<IMapTypeCatalog, SimulatedMapTypeCatalog>();
+        services.AddSingleton<IJobRepository, InMemoryJobRepository>();
+        services.AddSingleton<MapFileImporter>();
         services.AddSingleton<SelfCheckService>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
         services.AddSingleton<IAccountStore, InMemoryAccountStore>();

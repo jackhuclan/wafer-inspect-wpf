@@ -1,0 +1,335 @@
+<UserControl x:Class="WaferInspectHMI.Views.RecipeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI, Microsoft YaHei">
+    <UserControl.Resources>
+        <!-- 表单标签 / 输入控件的统一尺寸，避免逐处重复 -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+        </Style>
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+        <Style x:Key="FieldCombo" TargetType="ComboBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="286"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ==================== 左：Job 列表 + CRUD 工具栏（F-3.2.1-01~05） ==================== -->
+        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,12,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="42"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="12,0">
+                    <DockPanel VerticalAlignment="Center">
+                        <TextBlock Text="Job 列表" Style="{StaticResource PanelTitle}"/>
+                        <TextBlock Text="{Binding ListSummary}" Style="{StaticResource PanelSub}" HorizontalAlignment="Right"/>
+                    </DockPanel>
+                </Border>
+
+                <WrapPanel Grid.Row="1" Margin="10,8,10,4">
+                    <Button Content="新增" Style="{StaticResource GhostButton}" Width="56" Height="26" Margin="0,0,4,4"
+                            Command="{Binding NewJobCommand}" AutomationProperties.AutomationId="BtnJobNew" ToolTip="F-3.2.1-01"/>
+                    <Button Content="复制" Style="{StaticResource GhostButton}" Width="56" Height="26" Margin="0,0,4,4"
+                            Command="{Binding DuplicateJobCommand}" AutomationProperties.AutomationId="BtnJobDuplicate" ToolTip="F-3.2.1-02"/>
+                    <Button Content="重命名" Style="{StaticResource GhostButton}" Width="66" Height="26" Margin="0,0,4,4"
+                            Command="{Binding RenameJobCommand}" AutomationProperties.AutomationId="BtnJobRename" ToolTip="F-3.2.1-03"/>
+                    <Button Content="删除" Style="{StaticResource GhostButton}" Width="56" Height="26" Margin="0,0,4,4"
+                            Command="{Binding DeleteJobCommand}" AutomationProperties.AutomationId="BtnJobDelete" ToolTip="F-3.2.1-04"/>
+                    <Button Content="刷新" Style="{StaticResource GhostButton}" Width="56" Height="26" Margin="0,0,4,4"
+                            Command="{Binding RefreshJobsCommand}" AutomationProperties.AutomationId="BtnJobRefresh" ToolTip="F-3.2.1-05"/>
+                </WrapPanel>
+
+                <DataGrid Grid.Row="2" Margin="8,0,8,8" Style="{StaticResource Grid}"
+                          ItemsSource="{Binding Jobs}" SelectedItem="{Binding SelectedJob, Mode=TwoWay}"
+                          AutomationProperties.AutomationId="JobGrid" RowHeight="34">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="晶圆类型" Binding="{Binding PatternText}" Width="96"/>
+                        <DataGridTextColumn Header="尺寸" Binding="{Binding SizeText}" Width="54"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <!-- ==================== 右：Job 公共参数表单（F-3.2.1-06~28） ==================== -->
+        <Border Grid.Column="1" Style="{StaticResource Card}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="42"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="12,0">
+                    <DockPanel VerticalAlignment="Center">
+                        <TextBlock Text="Job 公共参数（大配方）" Style="{StaticResource PanelTitle}"/>
+                        <TextBlock Text="F-3.2.1-06~29 · 带 * 为必填" Style="{StaticResource PanelSub}" HorizontalAlignment="Right"/>
+                    </DockPanel>
+                </Border>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10,10,0">
+                    <StackPanel>
+                        <!-- 基础信息 -->
+                        <TextBlock Text="基础信息" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Text="名称 *（F-3.2.1-06）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormName, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldJobName"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                <TextBlock Text="晶圆类型 *（BR-16，默认有图案有 Mark）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding PatternTypeOptions}"
+                                          SelectedItem="{Binding FormPatternType, Mode=TwoWay}" AutomationProperties.AutomationId="FieldPatternType"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0">
+                                <TextBlock Text="晶圆尺寸 *（F-3.2.1-08）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding SizeOptions}"
+                                          SelectedItem="{Binding FormSize, Mode=TwoWay}" AutomationProperties.AutomationId="FieldWaferSize"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,0,0">
+                                <TextBlock Text="晶圆材料（固定 Si，级 C 保留）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormMaterial}" IsReadOnly="True"
+                                         Foreground="{StaticResource Text3}" AutomationProperties.AutomationId="FieldMaterial"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
+                                <TextBlock Text="晶圆厚度 mm（当前版本未启用，级 C 保留）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormThickness}" IsEnabled="False"
+                                         AutomationProperties.AutomationId="FieldThickness"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
+                                <TextBlock Text="回溯图存储（BR-15：覆盖系统全局开关）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding TraceImageOptions}"
+                                          SelectedItem="{Binding FormTraceImage, Mode=TwoWay}" AutomationProperties.AutomationId="FieldTraceImage"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Separator Margin="0,2,0,10" Background="{StaticResource Line}"/>
+
+                        <!-- Die 与 Notch -->
+                        <TextBlock Text="Die 与 Notch" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Die X mm（Map 自动加载，可手动）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormDieX, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldDieX"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Die Y mm *（F-3.2.1-12）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormDieY, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldDieY"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Notch 方向 °（BR-17 默认 270）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormNotch, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldNotch"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Separator Margin="0,2,0,10" Background="{StaticResource Line}"/>
+
+                        <!-- 图谱与 Map 文件 -->
+                        <TextBlock Text="图谱与 Map 文件" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Text="图谱选择 *（H05 MapType）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding MapTypeNames}"
+                                          SelectedItem="{Binding FormMapType, Mode=TwoWay}" AutomationProperties.AutomationId="FieldMapType"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                <TextBlock Text="Map 文件类型 *（BR-78 必须与格式匹配）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding MapFileTypeOptions}"
+                                          SelectedItem="{Binding FormMapFileType, Mode=TwoWay}" AutomationProperties.AutomationId="FieldMapFileType"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,0">
+                                <TextBlock Text="Map 文件 *（F-3.2.1-17）" Style="{StaticResource FieldLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Style="{StaticResource FieldBox}" Text="{Binding FormMapPath, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.AutomationId="FieldMapPath"/>
+                                    <Button Grid.Column="1" Content="浏览" Style="{StaticResource GhostButton}" Width="60" Height="30" Margin="6,0,0,0"
+                                            Command="{Binding BrowseMapFileCommand}" AutomationProperties.AutomationId="BtnJobBrowseMap"/>
+                                    <Button Grid.Column="2" Content="导入" Style="{StaticResource GhostButton}" Width="60" Height="30" Margin="6,0,0,0"
+                                            Command="{Binding ImportMapFileCommand}" AutomationProperties.AutomationId="BtnJobImportMap" ToolTip="F-3.2.1-11/18"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
+                                <TextBlock Text="列方向（F-3.2.1-16）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding DirectionOptions}"
+                                          SelectedItem="{Binding FormColumnDirection, Mode=TwoWay}" AutomationProperties.AutomationId="FieldColumnDir"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
+                                <TextBlock Text="行方向（F-3.2.1-16）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding DirectionOptions}"
+                                          SelectedItem="{Binding FormRowDirection, Mode=TwoWay}" AutomationProperties.AutomationId="FieldRowDir"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,8,0,0">
+                                <TextBlock Text="条码分类代码 *（F-3.2.1-18：1=良品、2=缺陷品…）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormBarcode, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldBarcode"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Separator Margin="0,2,0,10" Background="{StaticResource Line}"/>
+
+                        <!-- OCR -->
+                        <TextBlock Text="OCR（设备接入搁置 T-029，参数先落库）" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="OCR Job（F-3.2.1-19）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormOcrJob, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldOcrJob"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="识别角度 °（F-3.2.1-20）" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormOcrAngle, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="FieldOcrAngle"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="OCR 位置（F-3.2.1-21）" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding OcrPositionOptions}"
+                                          SelectedItem="{Binding FormOcrPosition, Mode=TwoWay}" AutomationProperties.AutomationId="FieldOcrPosition"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 高级：推荐忽略项（级 C 保留，T-004 待闭环） -->
+                        <Expander Header="高级参数（手册标「推荐忽略」，级 C 全量保留 · F-3.2.1-22~27）"
+                                  Margin="0,2,0,8" FontSize="11.5" Foreground="{StaticResource Text2}">
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <TextBlock Text="定位 Die X（F-3.2.1-22）" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormLocateDieX, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.AutomationId="FieldLocateDieX"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                    <TextBlock Text="定位 Die Y（F-3.2.1-22）" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormLocateDieY, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.AutomationId="FieldLocateDieY"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0">
+                                    <TextBlock Text="方向（F-3.2.1-23）" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormOrientation, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.AutomationId="FieldOrientation"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,0,0">
+                                    <TextBlock Text="列偏移 / 行偏移（F-3.2.1-24）" Style="{StaticResource FieldLabel}"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Style="{StaticResource FieldBox}" Text="{Binding FormColumnOffset, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.AutomationId="FieldColumnOffset"/>
+                                        <TextBox Grid.Column="2" Style="{StaticResource FieldBox}" Text="{Binding FormRowOffset, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.AutomationId="FieldRowOffset"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
+                                    <TextBlock Text="Col/Row（F-3.2.1-25）" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormColRow, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.AutomationId="FieldColRow"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
+                                    <TextBlock Text="X/Y（F-3.2.1-26）" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormXy, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.AutomationId="FieldXy"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,0">
+                                    <TextBlock Text="Include/Exclude（F-3.2.1-27）" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormIncludeExclude, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.AutomationId="FieldIncludeExclude"/>
+                                </StackPanel>
+                            </Grid>
+                        </Expander>
+
+                        <!-- 校验反馈（E-05：失败必须显式可见） -->
+                        <Border Background="{StaticResource DangerSoft}" CornerRadius="6" Padding="10,8" Margin="0,4,0,10"
+                                Visibility="{Binding HasValidationError, Converter={StaticResource BoolVis}}">
+                            <StackPanel>
+                                <TextBlock Text="校验未通过（以下字段需修正后再次保存）" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Danger}"/>
+                                <TextBlock Text="{Binding ValidationSummary}" FontSize="11" Foreground="{StaticResource Danger}"
+                                           TextWrapping="Wrap" Margin="0,4,0,0" AutomationProperties.AutomationId="TxtJobValidation"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 说明：子配方向导归属下一增量 -->
+                        <TextBlock Text="子 Recipe 分步向导（F-3.2.2-01~06：基础信息 → 拉平 → Mark → 参考图像 → ROI → 扫描区域 → 复判设置）依赖 T-005 / T-042，本页先完成 Job 级参数；向导入口将在该两项闭环后接入。"
+                                   FontSize="11" Foreground="{StaticResource Text3}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- 底部：状态 + 保存 -->
+                <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="14,8">
+                    <DockPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="6" Height="6" Fill="{StaticResource Accent}" Margin="0,0,7,0"/>
+                            <TextBlock Text="{Binding StatusText}" FontSize="11.5" Foreground="{StaticResource Text2}"
+                                       AutomationProperties.AutomationId="TxtJobStatus" TextTrimming="CharacterEllipsis" MaxWidth="620"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right" VerticalAlignment="Center">
+                            <TextBlock Text="F-3.2.1-29" Foreground="{StaticResource Text3}" FontSize="10.5" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Button Content="保存" Style="{StaticResource PrimaryButton}" Width="96" Height="30"
+                                    Command="{Binding SaveJobCommand}" AutomationProperties.AutomationId="BtnJobSave"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

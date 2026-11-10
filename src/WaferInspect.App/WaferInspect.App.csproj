@@ -18,4 +18,11 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
+  <!-- H02 Job 种子数据引用的样例 Map 文件：随产物输出到 samples/，供「Map 文件」导入演示与回归使用 -->
+  <ItemGroup Label="样例 Map 文件">
+    <Content Include="..\..\assets\map-samples\*.csv;..\..\assets\map-samples\*.txt"
+             Link="samples\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

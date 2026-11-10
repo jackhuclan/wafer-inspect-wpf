@@ -49,13 +49,14 @@ wafer-inspect-wpf/
 ```
 src/WaferInspect.App/
 ├─ App.xaml(.cs)              应用入口、资源字典合并、Generic Host 组合根
-├─ Views/                     窗口与 XAML 视图（构造函数注入 ViewModel）：DetectionView（检测任务九栏）
-│                             与配套对话框 SelectJobDialog / EfemSettingsDialog / WaferConfirmDialog / JobInfoDialog
+├─ Views/                     窗口与 XAML 视图（构造函数注入 ViewModel）：DetectionView（检测任务九栏）、
+│                             RecipeView（配方管理 Job CRUD + 参数表单）与配套对话框 SelectJob / EfemSettings /
+│                             WaferConfirm / JobInfo / RenameJob
 ├─ ViewModels/                页面状态编排、[ObservableProperty] / [RelayCommand]
-│  └─ Modules/                H01~H10 模块 ViewModel：H01（H01RunViewModel/H01Items）已实现，其余为骨架
+│  └─ Modules/                H01~H10 模块 ViewModel：H01/H02（H01RunViewModel / H02RecipeViewModel）已实现，其余为骨架
 ├─ Models/                    绑定模型（ObservableBase / NavGroup / NavItem / 任务 / 告警 …）
 ├─ Navigation/                把 Core 的纯配置转成运行时导航模型（实例服务）
-├─ Services/                  1 Hz 数据泵与其 IHostedService 托管；H01DialogService（对话框边界实现）
+├─ Services/                  1 Hz 数据泵与其 IHostedService 托管；H01/H02DialogService（对话框边界实现）
 ├─ Converters/                XAML 值转换器
 └─ Themes/                    语义色板、控件模板、状态样式
 
@@ -65,7 +66,9 @@ src/WaferInspect.Core/
 ├─ Devices/                   IDeviceGateway 与 H06 唯一命令层
 ├─ Events/                    H09 统一事件源；AlarmCenter（BR-74/75 统一告警中心）
 ├─ Security/                  H10 统一会话、显式权限判定、认证链路与统一角色模型；SelfCheckService（BR-77）
-├─ Maps/                      H05 唯一 Map 布局、等级与统计实现
+├─ Maps/                      H05 唯一 Map 布局、等级与统计实现；MapTypeCatalog（8 类 Bin 基线，MapType 唯一 Owner）
+├─ Recipes/                   H02 Job 域：JobDefinition（F-3.2.1-06~28）、JobValidator（必填/BR-15/16/17/78）、
+│                             MapFileImporter（TXT/CSV，XML/SINF 显式未接入）、IJobRepository（CRUD + 名称唯一）
 ├─ Run/                       H01 运行域唯一 Owner：WaferRunController（BR-06/08/09/10/14/74）、
 │                             ManualLoadSequencer（BR-05）、JobCatalog（BR-10）、RunModels、LogFormat（BR-18）
 ├─ Simulation/                确定性模拟算法 ISimulationData
@@ -85,7 +88,8 @@ src/WaferInspect.Core/
 覆盖 14 项导航与页面 Owner、分组/默认展开、Core 服务装配、数据源替换、Map 三通道历史快照、
 设备命令透传、统一事件、默认拒绝鉴权、统一角色模型展开、认证成败与登录门禁（含 `BR-76` 初始账号断言）、
 运行状态机（`RunControllerTests`：晶圆内计数/结晶提交/暂停恢复/结批/BR-74 拦截等 12 项）与
-手动装载序列 / Job 目录（`ManualLoadAndJobCatalogTests` 5 项），共 51 项；
+手动装载序列 / Job 目录（`ManualLoadAndJobCatalogTests` 5 项）、Job 仓库与 Map 导入
+（`JobRepositoryTests` 19 项：CRUD / 必填 / BR-15/16/17/78 / T-004 保留项往返），共 70 项；
 `BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；

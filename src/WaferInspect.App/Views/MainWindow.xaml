@@ -634,6 +634,12 @@
                         <views:DetectionView DataContext="{Binding Detection}"/>
                     </Grid>
 
+                    <!-- 视图 2b：配方管理（H02 Job CRUD + 公共参数，PRD 4.2 / F-3.2.1-01~29）。
+                         同样把 Visibility 留在外层 Grid，内层视图绑定子 ViewModel。 -->
+                    <Grid Visibility="{Binding IsRecipes, Converter={StaticResource BoolVis}}">
+                        <views:RecipeView DataContext="{Binding Recipes}"/>
+                    </Grid>
+
                     <!-- 视图 3：告警中心 -->
                     <Border Style="{StaticResource Card}" Visibility="{Binding IsAlarms, Converter={StaticResource BoolVis}}">
                         <Grid>

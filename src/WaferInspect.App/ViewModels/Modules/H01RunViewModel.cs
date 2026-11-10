@@ -32,6 +32,9 @@ public sealed partial class H01RunViewModel : ModuleViewModelBase, IDisposable
     private static readonly BrushConverter Brushes = new();
 
     private readonly WaferRunController _run;
+
+    /// <summary>F-3.1.2-27 翻面次数（T-002 已确认：正/反面互换后重新扫描该面）。</summary>
+    public int FlipCount { get; private set; }
     private readonly IAlarmCenter _alarms;
     private readonly IJobCatalog _jobs;
     private readonly IMapRenderer _map;
@@ -491,8 +494,13 @@ public sealed partial class H01RunViewModel : ModuleViewModelBase, IDisposable
             $"EFEM 设置已更新：{port.PortId} 锁定={port.IsLocked} · 条码={port.BarcodeSideText} · 角度={port.BarcodeAngle}°（BR-02/BR-03）"));
 
         if (result.FlipRequested)
-            // F-3.1.2-27：手册标「推荐忽略」，按级 C 保留；语义见【待确认 T-002】。
-            AppendLog(Info("EFEM", "[搁置] 翻面动作未下发（F-3.1.2-27 语义待确认 T-002；设备连接搁置 T-029）"));
+        {
+            // F-3.1.2-27（T-002 已确认）：翻面 = 正/反面互换后重新扫描该面；物理动作随 T-029 搁置。
+            FlipCount++;
+            AppendLog(Info("EFEM",
+                $"翻面请求已记录：第 {FlipCount} 次（F-3.1.2-27，T-002）· 正/反面互换，设备执行后需重新扫描该面"));
+            AppendLog(Info("EFEM", "[搁置] 物理翻面动作未下发（设备连接搁置 T-029）"));
+        }
 
         // F-3.1.2-25：弹窗内的「扫描料盒」等价于料盒信息栏的扫描动作。
         if (result.ScanRequested)

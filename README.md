@@ -41,16 +41,16 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 
 | 目录 | 用途 |
 |---|---|
-| `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Run/`、`Simulation/`、`DependencyInjection/` |
-| `src/WaferInspect.App` | WPF 主程序：`Views/`（含检测任务视图与对话框）、`ViewModels/`（含 `Modules/` 的 H01~H10，其中 H01 已实现）、`Models/`、`Services/` 等 |
-| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机与手动装载序列 / Job 目录单测（51 项） |
+| `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Recipes/`、`Run/`、`Simulation/`、`DependencyInjection/` |
+| `src/WaferInspect.App` | WPF 主程序：`Views/`（含检测任务与配方管理视图、对话框）、`ViewModels/`（含 `Modules/` 的 H01~H10，其中 H01/H02 已实现）、`Models/`、`Services/` 等 |
+| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机、手动装载序列 / Job 目录、Job 仓库与 Map 导入单测（70 项） |
 | `tools/WaferInspect.Smoke` | 启动冒烟工具 |
 | `.github/workflows/build.yml` | CI：restore + Release 构建 + 单元测试 |
 
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（0.6.1）
+## 架构（0.7.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -64,7 +64,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 
 启动链路：`App.OnStartup` → 构建 Host → `host.Start()`（启动数据泵）→ 登录窗口（`LoginWindow`，唯一登录入口）→ 认证成功经 `LoginGate` 校验 → 解析 `MainWindow`（注入 `MainViewModel`）→ `Show()`；取消登录则应用退出。
 
-## Blade 迁移状态（P0 / P1 已关闭）
+## Blade 迁移状态（P0 / P1 已关闭，P2 进行中）
 
 P0 基线：4 组 14 项导航，新增「数据分析」(`analysis`) 与「图谱管理」(`maps`)，
 两页均明确标识为尚未迁移的骨架，不展示伪造的历史业务数据。H01~H10 ViewModel 已注册，
@@ -79,8 +79,14 @@ BR-06/08/09/10/14/74）、`ManualLoadSequencer`（BR-05 五步顺序）、`Simul
 （端口/模式、料盒 25 槽、扫描进度、图谱视图、快捷操作、晶圆/批次/缺陷/日志），并经
 UIAutomation 全流程实测（选 Job → 应用 → 开始运行 → 实时进度与缺陷列表）。设备连接相关的
 13 项动作按用户指示**明确搁置**（未伪造成功、未下发指令，日志以「[搁置]」标注），清单与恢复
-条件见 [`docs/P1-Migration-Status.md`](docs/P1-Migration-Status.md) §4。完整验收状态、F↔R↔AC
-追溯和待确认项见 [`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
+条件见 [`docs/P1-Migration-Status.md`](docs/P1-Migration-Status.md) §4。
+
+0.7.0 交付 P2 增量 1（`T-001`/`T-002`/`T-021` 已由用户确认闭环）：`Core/Recipes` 落地 Job
+23 字段组定义与校验（BR-15/16/17/78）、TXT/CSV Map 导入器、`IJobRepository`（CRUD + 名称唯一），
+`Core/Maps` 提供 MapType 只读基线（8 类 Bin）；「配方管理」页由骨架替换为真实 Job 列表 +
+CRUD + 公共参数表单（推荐忽略项全量保留）。子 Recipe 分步向导依赖 `T-005`（高阻塞）暂未实现，
+P2 未关闭；明细见 [`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
+F↔R↔AC 追溯和待确认项见 [`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
 
 ## 左侧导航配置
 

@@ -42,9 +42,11 @@ public partial class App : Application
                     services.AddSingleton<ILiveDataPump, DispatcherTimerLiveDataPump>();
                     services.AddSingleton<INavGroupFactory, NavGroupFactory>();
                     services.AddSingleton<IH01DialogService, H01DialogService>();
+                    services.AddSingleton<IH02DialogService, H02DialogService>();
                     services.AddSingleton<H01RunViewModel>();
                     services.AddSingleton<ModuleViewModelBase>(provider => provider.GetRequiredService<H01RunViewModel>());
-                    services.AddSingleton<ModuleViewModelBase, H02RecipeViewModel>();
+                    services.AddSingleton<H02RecipeViewModel>();
+                    services.AddSingleton<ModuleViewModelBase>(provider => provider.GetRequiredService<H02RecipeViewModel>());
                     services.AddSingleton<ModuleViewModelBase, H03AlignmentViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H04InspectionViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H05MapViewModel>();

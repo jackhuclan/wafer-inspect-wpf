@@ -20,7 +20,7 @@ public sealed class CassetteSlot
 {
     public CassetteSlot(int index) => Index = index;
 
-    /// <summary>槽位行号 1~25（4.1.2 布局；数量与编号规则见【待确认 T-021】）。</summary>
+    /// <summary>槽位行号 1~25（4.1.2 布局；T-021 已确认：Port1/Port2 各 25 槽，固定编号 1~25）。</summary>
     public int Index { get; }
 
     public string WaferId { get; set; } = string.Empty;

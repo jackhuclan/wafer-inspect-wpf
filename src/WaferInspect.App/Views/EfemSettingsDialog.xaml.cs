@@ -66,7 +66,7 @@ public partial class EfemSettingsDialog : Window
     {
         _flip = true;
         MessageBox.Show(this,
-            "已记录「翻面」请求（F-3.1.2-27，手册标注推荐忽略；语义待确认 T-002）。\n设备动作未下发（T-029）。",
+            "已记录「翻面」请求（F-3.1.2-27，T-002 已确认：正/反面互换后重新扫描该面）。\n物理翻面动作未下发（设备连接搁置 T-029）。",
             "翻面", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 

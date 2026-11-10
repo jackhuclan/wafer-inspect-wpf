@@ -37,6 +37,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private readonly IAuthorizationService _authorization;
     private readonly IAlarmCenter _alarmCenter;
     private readonly H01RunViewModel _detection;
+    private readonly H02RecipeViewModel _recipes;
     private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
     private readonly Random _rng = new(20261109);
@@ -61,6 +62,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         IAuthorizationService authorization,
         IAlarmCenter alarmCenter,
         H01RunViewModel detection,
+        H02RecipeViewModel recipes,
         ILogger<MainViewModel> logger)
     {
         _catalog = catalog;
@@ -73,6 +75,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         _authorization = authorization;
         _alarmCenter = alarmCenter;
         _detection = detection;
+        _recipes = recipes;
         _logger = logger;
 
         // 模块内导航（例如「配方管理」跳 H02）复用主窗口统一导航入口。
@@ -126,6 +129,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     [ObservableProperty] private string _pageSubtitle = "产线 A · FAB-03 · 设备与检测任务实时状态";
     [ObservableProperty] private bool _isOverview = true;
     [ObservableProperty] private bool _isTasks;
+    [ObservableProperty] private bool _isRecipes;
     [ObservableProperty] private bool _isAlarms;
     [ObservableProperty] private bool _isLive;
     [ObservableProperty] private bool _isGeneric;
@@ -162,6 +166,9 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     /* ---------------- 绑定契约：一次性构建的集合与计算属性 ---------------- */
     /// <summary>H01 检测任务页 ViewModel（P1 完整实现），由 DetectionView 直接绑定。</summary>
     public H01RunViewModel Detection => _detection;
+
+    /// <summary>H02 配方与 Job 管理页 ViewModel（P2），由 RecipeView 直接绑定。</summary>
+    public H02RecipeViewModel Recipes => _recipes;
 
     public List<NavGroup> NavGroups { get; private set; }
     public List<DeviceItem> Devices { get; private set; }
@@ -456,10 +463,11 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
 
         IsOverview = key == "overview";
         IsTasks = key == "tasks";
+        IsRecipes = key == "recipes";
         IsAlarms = key == "alarms";
         IsLive = key == "live";
         IsModuleSkeleton = page.IsMigrationSkeleton;
-        IsGeneric = !(IsOverview || IsTasks || IsAlarms || IsLive || IsModuleSkeleton);
+        IsGeneric = !(IsOverview || IsTasks || IsRecipes || IsAlarms || IsLive || IsModuleSkeleton);
         if (IsGeneric) BuildModuleTable(key);
 
         StatusMessage = $"当前视图：{PageCrumb}";

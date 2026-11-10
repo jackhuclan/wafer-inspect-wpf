@@ -89,7 +89,7 @@
                             <Button Content="翻面" Style="{StaticResource GhostButton}" Width="96" Margin="0,0,8,0" Click="Flip_Click"/>
                             <Button Content="EFEM 错误清除" Style="{StaticResource GhostButton}" Width="130" Click="ClearError_Click"/>
                         </StackPanel>
-                        <TextBlock Text="翻面（F-3.1.2-27）手册标注「推荐忽略」，按级 C 保留；语义待确认 T-002。EFEM 错误清除归 H09（B-18）。"
+                        <TextBlock Text="翻面（F-3.1.2-27，T-002 已确认）：晶圆正面 / 反面互换并重新扫描该面；物理翻面由 EFEM 执行，设备连接搁置（T-029），界面先置「已翻面 · 待设备执行」。EFEM 错误清除归 H09（B-18）。"
                                    FontSize="11" Foreground="{StaticResource Text3}" Margin="0,8,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
