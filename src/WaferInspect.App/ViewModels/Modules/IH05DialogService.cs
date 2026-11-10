@@ -9,6 +9,9 @@ public interface IH05DialogService
     /// <summary>BR-45 / F-3.7.2-11：选择图谱文件；取消返回空字符串。</summary>
     string PickMapFile(string currentPath);
 
+    /// <summary>BR-50 / Sinf 诚实内部导出：选择导出文件路径；取消返回空字符串。</summary>
+    string PickExportPath(string suggestedName);
+
     /// <summary>F-3.7.2-02：新增 / 重命名图谱类型名称；取消返回空字符串。</summary>
     string PromptTypeName(string title, string initialName);
 

@@ -27,7 +27,7 @@ public sealed partial class H05MapViewModel : ModuleViewModelBase
         MapGridModel map,
         IJobRepository jobs,
         IH05DialogService dialogs)
-        : base("H05", "图谱与 Map 数据管理", "P2（MapType / Map 渲染）· P3（Sinf 复判）· P4-A（Wafer 扫描 Map 编辑，1.5.0）· P4-B（12 步流程 / Sinf 导出，未迁移）")
+        : base("H05", "图谱与 Map 数据管理", "P2（MapType / Map 渲染）· P3（Sinf 复判）· P4-A（Wafer 扫描 Map 编辑，1.5.0）· P4-B（12 步流程 / Sinf 导出，1.6.0）")
     {
         _catalog = catalog;
         _map = map;
@@ -65,11 +65,12 @@ public sealed partial class H05MapViewModel : ModuleViewModelBase
     [ObservableProperty] private string _selectedDieText = "未选中 Die";
     [ObservableProperty] private string _revisionText = "刷新版本 v0";
 
-    /// <summary>R-H05-04/06 属 P4-B 未迁移；R-H05-05 已在 P4-A 由独立「Wafer 扫描」页交付，故本说明仅登记剩余项。</summary>
+    /// <summary>R-H05-04（12 步流程）/ R-H05-06（Sinf）已在 P4-B（1.6.0）由独立「Wafer 扫描」页交付；本说明登记诚实边界。</summary>
     public string DeferredNote =>
-        "[未迁移·P4-B] Wafer 扫描 12 步 Map 创建流程（R-H05-04）、Sinf 生成与导出（R-H05-06）属后续增量；" +
-        "T-037 格式规范待确认。Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩（R-H05-05）已在 P4-A（1.5.0）" +
-        "由独立「Wafer 扫描」页（WaferScanViewModel）交付，复用本页同一 MapGridModel 与 MapGridView（B-06）。";
+        "[P4-B·已交付] Wafer 扫描 12 步流程（R-H05-04 / B-24）由独立「Wafer 扫描」页编排真实落地，依赖 H03/H06 的步骤（3~9）诚实 `[搁置]`（E-08/E-10）；" +
+        "Sinf 导出（R-H05-06 / BR-50 / B-12）为诚实内部导出（自洽 CSV，标注「非工业 Sinf 字节流，T-037 待确认」）；" +
+        "Ink 墨点 / ReferenceDie 笔刷（BR-49）已交付。Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩（R-H05-05）已在 P4-A（1.5.0）" +
+        "由独立「Wafer 扫描」页交付，复用本页同一 MapGridModel 与 MapGridView（B-06）。";
 
     public string FixedKindsText => string.Join(" / ", BinKindCatalog.FixedKinds.Select(k => k.ToString()));
 

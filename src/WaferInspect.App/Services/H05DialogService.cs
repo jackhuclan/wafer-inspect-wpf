@@ -18,6 +18,18 @@ public sealed class H05DialogService : IH05DialogService
         return dialog.ShowDialog(Owner) == true ? dialog.FileName : string.Empty;
     }
 
+    public string PickExportPath(string suggestedName)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "导出 Sinf（诚实内部表示，T-037 待确认）",
+            FileName = suggestedName,
+            Filter = "Sinf 内部导出 (*.sinf.internal.csv)|*.sinf.internal.csv|CSV (*.csv)|*.csv|所有文件 (*.*)|*.*",
+            OverwritePrompt = true
+        };
+        return dialog.ShowDialog(Owner) == true ? dialog.FileName : string.Empty;
+    }
+
     public string PromptTypeName(string title, string initialName)
     {
         var dialog = new RenameJobDialog(title, initialName) { Owner = Owner };

@@ -210,11 +210,11 @@ H03/H04 网格坐标、H08 复判快捷键一律订阅 `Changed` 或调用 `Colo
 禁止任何页面自建颜色表或快捷键映射。`MapGridModel` 是 `[列,行]` 坐标换算与 Bin 着色的唯一实现，
 `FormatDieCoordinate` 负责 1-based Die 行列 → 0-based 显示坐标，界面不得自行 `-1`。
 生成 Map 图必须先有图谱文件（BR-45）；复判后不点刷新颜色不变（BR-53），`MapGridModel.Refresh`
-是唯一显式刷新入口。`R-H05-04/06` 属 P4-B，当前只保留显式「未迁移」登记，不得伪造 Wafer 扫描 12 步流程 / Sinf 入口；
+是唯一显式刷新入口。`R-H05-04`（12 步流程）已在 1.6.0（P4-B）由 `ScanFlowStep` 编排真实交付，依赖 H03/H06 的步骤（3~9）诚实 `[搁置]`（不伪造设备/算法结果，E-08/E-10）；`R-H05-06`（Sinf）已在 1.6.0 交付**诚实内部导出**（自洽 CSV，文件头明确标注「非工业 Sinf 字节流，T-037 待确认」），不得伪造工业格式 / 设备入口；
 `R-H05-05`（Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩）已在 1.5.0（P4-A）由独立「Wafer 扫描」页真实交付，
 复用 `MapGridModel`+`MapGridView`（B-06），不得另起第二份绘制规则。`AC-H05-04` 的复判全景 Map 已在 1.2.0
 复用 `MapGridView` 收口（坐标/着色规则唯一来自 H05 Core，无第二份绘制规则），首页圆片概览仍消费 `WaferMapRenderer`
-（绘制规则同样唯一来自 `MapLevelPalette`）。**结果导出动作 B-13 已在 H08 落地（R-H08-06 统一服务）：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**。**P3 增量 8（1.4.0）：按 Die 查看 R-H08-05 已真实落地（双击/方向键导航 + 该 Die 缺陷联动 + BR-73 无图提示）；GoldenDie/回溯图/复判图（F-3.9.3-20/23）视图框架已搭并诚实 `[搁置]`；Sinf 生成 B-12（`ISinfGenerator`，T-037）与 AI 重新推理（`IRecheckService.ReInfer`，R-H08-07/BR-66，T-035）为**明确不可用入口**，不伪造工业格式 / AI 结果**。**P4-A（1.5.0）：H05 Wafer 扫描独立导航项 + 扫描参数（BR-46/47/48）+ Map 编辑工具（R-H05-05）真实交付；直接编辑即时刷新（`NeedsRefresh=false`）与 H08 复判 `Reassign` 的 BR-53「待刷新」语义区分明确；全景图（F-3.7.3-10）诚实 `[搁置]`（T-029）；P4-B 的 R-H05-04 / BR-50（Sinf）于 `WaferScanViewModel.DeferredNote` 登记未迁移**。
+（绘制规则同样唯一来自 `MapLevelPalette`）。**结果导出动作 B-13 已在 H08 落地（R-H08-06 统一服务）：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**。**P3 增量 8（1.4.0）：按 Die 查看 R-H08-05 已真实落地（双击/方向键导航 + 该 Die 缺陷联动 + BR-73 无图提示）；GoldenDie/回溯图/复判图（F-3.9.3-20/23）视图框架已搭并诚实 `[搁置]`；Sinf 生成 B-12（`ISinfGenerator`，T-037）与 AI 重新推理（`IRecheckService.ReInfer`，R-H08-07/BR-66，T-035）为**明确不可用入口**，不伪造工业格式 / AI 结果**。**P4-A（1.5.0）：H05 Wafer 扫描独立导航项 + 扫描参数（BR-46/47/48）+ Map 编辑工具（R-H05-05）真实交付；直接编辑即时刷新（`NeedsRefresh=false`）与 H08 复判 `Reassign` 的 BR-53「待刷新」语义区分明确；全景图（F-3.7.3-10）诚实 `[搁置]`（T-029）；**P4-B（1.6.0）已续交付：12 步流程编排（B-24 / F-3.7.3-25，`ScanFlowStep` + `RunFlow`/`RunStep`，依赖 H03/H06 步诚实 `[搁置]`）、Ink/ReferenceDie 笔刷（BR-49，`MapGridCell.Inked` + `MapGridView.InkMode` 墨点渲染）、Sinf 导出（BR-50，诚实内部 CSV，标注「非工业 Sinf 字节流，T-037 待确认」）；`WaferScanViewModel.DeferredNote` 同步更新**。
 
 WPF 实现约定（0.6.0 起，源于实测踩坑）：
 - **禁用 `ContentControl` + `ContentTemplate` 渲染列表**：Content 为 null 时模板不实例化，

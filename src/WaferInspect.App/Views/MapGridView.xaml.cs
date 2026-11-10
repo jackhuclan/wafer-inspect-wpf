@@ -47,6 +47,17 @@ public partial class MapGridView : UserControl
         set => SetValue(BatchModeProperty, value);
     }
 
+    /// <summary>Wafer 扫描 Ink 墨点笔刷（BR-49）：开启后单击网格即切换该 Die 的 Ink 墨点标记，
+    /// 与 <see cref="BrushBin"/> / <see cref="BatchMode"/> 正交；为 null/false 时保持既有行为（向后兼容）。</summary>
+    public static readonly DependencyProperty InkModeProperty = DependencyProperty.Register(
+        nameof(InkMode), typeof(bool), typeof(MapGridView), new PropertyMetadata(false));
+
+    public bool InkMode
+    {
+        get => (bool)GetValue(InkModeProperty);
+        set => SetValue(InkModeProperty, value);
+    }
+
     /// <summary>矩形框选完成事件（批量修改触发），参数为归一化后的四角坐标。</summary>
     public event EventHandler<RectSelectedEventArgs> RectSelected;
 
@@ -82,7 +93,11 @@ public partial class MapGridView : UserControl
         {
             double cellWidth = Size / (double)Math.Max(1, model.Columns);
             double cellHeight = Size / (double)Math.Max(1, model.Rows);
-            foreach (var cell in model.Cells) PaintCell(pixels, cell, cellWidth, cellHeight);
+            foreach (var cell in model.Cells)
+            {
+                PaintCell(pixels, cell, cellWidth, cellHeight);
+                if (cell.Inked) PaintInkDot(pixels, cell, cellWidth, cellHeight);
+            }
             if (model.Selected != null) PaintSelection(pixels, model.Selected.Column, model.Selected.Row, cellWidth, cellHeight);
         }
 
@@ -122,6 +137,23 @@ public partial class MapGridView : UserControl
             if (x - x0 < 2 || y - y0 < 2 || x1 - x <= 2 || y1 - y <= 2) Set(pixels, x, y, accent);
     }
 
+    /// <summary>BR-49：在单元格中心绘制墨点（物理墨点属性可视化）。</summary>
+    private static void PaintInkDot(byte[] pixels, MapGridCell cell, double cellWidth, double cellHeight)
+    {
+        double cx = (cell.Column + 0.5) * cellWidth;
+        double cy = (cell.Row + 0.5) * cellHeight;
+        double r = Math.Max(1, Math.Min(cellWidth, cellHeight) * 0.22);
+        var ink = Color.FromRgb(0x22, 0x22, 0x22);
+        int x0 = (int)Math.Floor(cx - r), x1 = (int)Math.Ceiling(cx + r);
+        int y0 = (int)Math.Floor(cy - r), y1 = (int)Math.Ceiling(cy + r);
+        for (int y = y0; y < y1; y++)
+        for (int x = x0; x < x1; x++)
+        {
+            double dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+            if (dx * dx + dy * dy <= r * r) Set(pixels, x, y, ink);
+        }
+    }
+
     private static void Set(byte[] pixels, int x, int y, Color color)
     {
         if (x < 0 || y < 0 || x >= Size || y >= Size) return;
@@ -136,6 +168,14 @@ public partial class MapGridView : UserControl
     {
         if (Model == null) return;
         int column = CellAt(e.GetPosition(CanvasRoot), out int row);
+        if (InkMode)   // BR-49：墨点笔刷，单击即切换该 Die 的 Ink 标记（正交于笔刷/批量）
+        {
+            var existing = Model.Cells.FirstOrDefault(c => c.Column == column && c.Row == row);
+            if (existing == null) return;
+            Model.EditInk(column, row, !existing.Inked);
+            Model.Select(column, row);
+            return;
+        }
         if (BatchMode)
         {
             _dragging = true;

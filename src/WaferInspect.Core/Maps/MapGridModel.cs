@@ -6,10 +6,14 @@ namespace WaferInspect.Core.Maps;
 /// </summary>
 public sealed record MapGridCell(int Row, int Column, BinKind Kind, string Code, int Level, string ColorHex, string Label)
 {
+    /// <summary>BR-49：Ink 墨点标记（Die 物理墨点属性，独立于 Bin 类别）；非 Bin 类，是本地元数据。
+    /// 非 positional 属性，所有 <c>with</c> 编辑（复判 / 笔刷 / 外扩内缩）均自动保留本值。</summary>
+    public bool Inked { get; init; }
+
     /// <summary>BR-51：缺陷所在 Die 格式 <c>[列,行]</c>，图谱左上角 <c>[0,0]</c>。</summary>
     public string Coordinate => MapGridModel.FormatCoordinate(Column, Row);
 
-    public string Tip => $"{Coordinate} · {Label}（{Code}）· 等级 {Level}";
+    public string Tip => $"{Coordinate} · {Label}（{Code}）{(Inked ? " · 墨点" : "")}· 等级 {Level}";
 }
 
 /// <summary>
@@ -27,6 +31,9 @@ public sealed class MapGridModel
     public IReadOnlyList<MapGridCell> Cells { get; private set; } = [];
 
     public MapGridCell? Selected { get; private set; }
+
+    /// <summary>BR-49：Ink 墨点标记的 Die 坐标集合（Die 物理墨点属性，独立于 Bin 类别）；跨刷新 / 重着色保留。</summary>
+    private readonly HashSet<(int Column, int Row)> _inked = new();
 
     /// <summary>显式刷新次数（BR-53：复判完成后不点「刷新图谱」，颜色不变）。</summary>
     public int RefreshVersion { get; private set; }
@@ -198,7 +205,10 @@ public sealed class MapGridModel
             var bin = byKind.TryGetValue(kind, out var b)
                 ? b
                 : kind.CreateDefault(0, MapLevelPalette.ColorFor("PL", kind.DefaultLevel()));
-            cells.Add(new MapGridCell(row, column, bin.Kind, bin.Code, bin.Level, bin.ColorHex, bin.Name));
+            cells.Add(new MapGridCell(row, column, bin.Kind, bin.Code, bin.Level, bin.ColorHex, bin.Name)
+            {
+                Inked = _inked.Contains((column, row))
+            });
         }
         Cells = cells;
         NeedsRefresh = false;
@@ -429,6 +439,56 @@ public sealed class MapGridModel
         return true;
     }
 
+    /// <summary>
+    /// Wafer 扫描 · Ink 笔刷（BR-49）：把指定 Die 标记为墨点（物理墨点属性，独立于 Bin 类别）。
+    /// 这是用户对 Map 的**直接编辑**，颜色 / 墨点**立即**更新（NeedsRefresh=false，与复判 BR-53 语义区分）。
+    /// </summary>
+    public bool EditInk(int column, int row, bool inked)
+    {
+        var cell = Cells.FirstOrDefault(c => c.Column == column && c.Row == row);
+        if (cell == null)
+        {
+            StatusText = $"网格 {FormatCoordinate(column, row)} 不存在（请先生成 Map 图）";
+            Raise();
+            return false;
+        }
+        if (inked) _inked.Add((column, row));
+        else _inked.Remove((column, row));
+        var list = Cells.ToList();
+        int at = list.FindIndex(c => c.Column == column && c.Row == row);
+        list[at] = cell with { Inked = inked };
+        Cells = list;
+        NeedsRefresh = false;
+        StatusText = inked
+            ? $"Ink 笔刷：{cell.Coordinate} 已标记墨点（BR-49，物理墨点属性）"
+            : $"Ink 笔刷：{cell.Coordinate} 已清除墨点";
+        Raise();
+        return true;
+    }
+
+    /// <summary>清除全部 Ink 墨点标记（BR-49）。</summary>
+    public bool ClearAllInk()
+    {
+        if (_inked.Count == 0)
+        {
+            StatusText = "当前没有 Ink 墨点标记";
+            Raise();
+            return false;
+        }
+        _inked.Clear();
+        var list = Cells.ToList();
+        for (int i = 0; i < list.Count; i++)
+            if (list[i].Inked) list[i] = list[i] with { Inked = false };
+        Cells = list;
+        NeedsRefresh = false;
+        StatusText = "已清除全部 Ink 墨点标记（BR-49）";
+        Raise();
+        return true;
+    }
+
+    /// <summary>当前被 Ink 标记的 Die 数量（BR-49）。</summary>
+    public int InkedCount => _inked.Count;
+
     private static bool HasTargetNeighbor(IReadOnlyList<MapGridCell> list, int index, BinKind kind)
     {
         var c = list[index];
@@ -466,7 +526,10 @@ public sealed class MapGridModel
             var bin = bins.Count == 0
                 ? BinKind.BlankDie.CreateDefault(0, "#E8EDF5")
                 : bins[(row * 31 + column * 7) % bins.Count];
-            cells.Add(new MapGridCell(row, column, bin.Kind, bin.Code, bin.Level, bin.ColorHex, bin.Name));
+            cells.Add(new MapGridCell(row, column, bin.Kind, bin.Code, bin.Level, bin.ColorHex, bin.Name)
+            {
+                Inked = _inked.Contains((column, row))
+            });
         }
         Cells = cells;
     }

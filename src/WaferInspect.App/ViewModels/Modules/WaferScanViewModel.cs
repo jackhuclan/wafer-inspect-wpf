@@ -38,6 +38,8 @@ public sealed partial class WaferScanViewModel : ObservableBase
         SelectedType = Types.FirstOrDefault();
         LoadBrushBins();
         RefreshMapText();
+        InitFlowSteps();
+        CurrentStepIndex = 0;
     }
 
     /// <summary>Wafer 扫描专用 Map 模型（本页私有实例，与 maps 页预览隔离，B-06 唯一绘制规则）。</summary>
@@ -65,10 +67,12 @@ public sealed partial class WaferScanViewModel : ObservableBase
     [ObservableProperty] private string _revisionText = "刷新版本 v0";
     [ObservableProperty] private string _panoramaText = "[搁置] 全景图需 H06 图像采集（T-029），未接入";
     [ObservableProperty] private string _deferredNote =
-        "[未迁移·P4-B] 12 步 Map 创建流程（R-H05-04 / B-24）、Sinf 导出（BR-50 / B-12）属后续增量；" +
-        "F-3.7.3-02/03 模板类型/匹配分数复用 H03 单一实现对位能力（B-08）；" +
-        "F-3.7.3-04 拉平 / 05 寻找圆心 / 08 扫描执行 / 10 全景图 / 13 创建模板 / 16~18 匹配搜索圆·锁定·Die 匹配 / 14 填充未匹配 " +
-        "依赖 H03/H06（T-029 / T-035），本页仅提供参数与本地编辑，不伪造设备/算法结果（E-08 / E-10）。";
+        "[P4-B·已交付] 12 步流程编排（B-24 / R-H05-04）已落地：编排层 + 自由跳转（BR-19），" +
+        "本地步（1 创建方式 / 2 选图谱 / 10 Die 笔刷 / 11 Ink·ReferenceDie / 12 Sinf 内部导出）真实完成；" +
+        "Ink 墨点（BR-49）为本地 Die 元数据，ReferenceDie 已是 B-11 笔刷；" +
+        "Sinf 导出为诚实内部表示（非工业字节流，T-037 待确认）。" +
+        "[诚实搁置] 步骤 3~9 依赖 H03 对位 / H06 扫描执行（T-029 / T-035）：选模板 / 矩形 ROI / 匹配搜索圆 / 锁定 / 灰度+Die 匹配 / 降分重试 / 填充未匹配，" +
+        "均仅登记不伪造设备/算法结果（E-08 / E-10）。";
 
     partial void OnSelectedTypeChanged(MapTypeRow value) => LoadBrushBins();
 
@@ -198,6 +202,181 @@ public sealed partial class WaferScanViewModel : ObservableBase
         if (BrushBinDef == null) { StatusText = "请先在右侧选择笔刷 Bin，再框选区域批量修改"; return; }
         _map.EditRect(c0, r0, c1, r1, BrushBinDef);
         StatusText = _map.StatusText;
+    }
+
+    /* ---------------- 12 步流程编排（B-24 / F-3.7.3-25） ---------------- */
+
+    public ObservableCollection<ScanFlowStep> FlowSteps { get; } = new();
+
+    [ObservableProperty] private ScanFlowStep _selectedStep;
+    [ObservableProperty] private int _currentStepIndex;
+    [ObservableProperty] private bool _isInkMode;
+    [ObservableProperty] private string _flowStatusText = "请选择左侧步骤查看说明，或点击「运行全流程」逐条执行（诚实标记依赖步）";
+
+    private void InitFlowSteps()
+    {
+        FlowSteps.Add(new ScanFlowStep(1, "选创建方式", "H05", true));
+        FlowSteps.Add(new ScanFlowStep(2, "选图谱类型并生成 Map", "H05", true));
+        FlowSteps.Add(new ScanFlowStep(3, "选 GoodDie Bin 并创建模板", "H03", false, "模板创建依赖 H03 对位（T-029/T-035）"));
+        FlowSteps.Add(new ScanFlowStep(4, "调整矩形 ROI", "H03", false, "矩形 ROI 依赖 H03 对位（T-029）"));
+        FlowSteps.Add(new ScanFlowStep(5, "显示并调整匹配搜索圆", "H03", false, "匹配搜索圆依赖 H03 对位能力（B-10 / T-029）"));
+        FlowSteps.Add(new ScanFlowStep(6, "锁定", "H03", false, "锁定依赖 H03 对位（T-029）"));
+        FlowSteps.Add(new ScanFlowStep(7, "灰度模板 + Die 匹配", "H03/H06", false, "灰度模板与 Die 匹配依赖 H03/H06 扫描执行（T-029/T-035）"));
+        FlowSteps.Add(new ScanFlowStep(8, "降低匹配分数重试", "H03", false, "匹配分数重试依赖 H03 对位（T-035）"));
+        FlowSteps.Add(new ScanFlowStep(9, "填充未匹配 Die / 多建模板", "H03/H06", false, "填充未匹配依赖 H03/H06（T-029/T-035）"));
+        FlowSteps.Add(new ScanFlowStep(10, "Die 笔刷手动改 Bin", "H05", true));
+        FlowSteps.Add(new ScanFlowStep(11, "Ink 笔刷改未匹配 Die / 设 ReferenceDie", "H05", true, "", "BR-49：Ink 墨点为本地元数据，ReferenceDie 已是 B-11 笔刷"));
+        FlowSteps.Add(new ScanFlowStep(12, "导出 Sinf", "H05/H08", true, "", "诚实内部导出（非工业 Sinf 字节流，T-037 待确认）"));
+        SelectedStep = FlowSteps[0];
+    }
+
+    [RelayCommand]
+    private void SelectStep(ScanFlowStep step)
+    {
+        if (step == null) return;
+        SelectedStep = step;
+        CurrentStepIndex = step.StepNo - 1;
+    }
+
+    [RelayCommand]
+    private void GotoNext()
+    {
+        int i = CurrentStepIndex + 1;
+        if (i >= FlowSteps.Count) return;
+        SelectedStep = FlowSteps[i];
+        CurrentStepIndex = i;
+    }
+
+    [RelayCommand]
+    private void GotoPrev()
+    {
+        int i = CurrentStepIndex - 1;
+        if (i < 0) return;
+        SelectedStep = FlowSteps[i];
+        CurrentStepIndex = i;
+    }
+
+    [RelayCommand]
+    private void RunStep(ScanFlowStep step)
+    {
+        if (step == null) return;
+        switch (step.StepNo)
+        {
+            case 1:
+                ApplyScanParams();
+                MarkStepDone(step);
+                break;
+            case 2:
+                GenerateMap();
+                MarkStepDone(step);
+                break;
+            case 10:
+                if (BrushBinDef != null && _map.Selected != null)
+                {
+                    _map.EditCell(_map.Selected.Column, _map.Selected.Row, BrushBinDef);
+                    StatusText = _map.StatusText;
+                }
+                else
+                {
+                    StatusText = "步骤 10：请先在 Map 上双击选中一个 Die，并在右侧选择笔刷 Bin";
+                }
+                MarkStepDone(step);
+                break;
+            case 11:
+                IsInkMode = true;
+                StatusText = "步骤 11：已开启 Ink 墨点笔刷（BR-49）——在 Map 上单击 Die 切换墨点；或选 ReferenceDie 笔刷后单击设参考 Die";
+                MarkStepDone(step);
+                break;
+            case 12:
+                bool ok = TryExportSinf();
+                step.Status = ok ? FlowStepStatus.Done : FlowStepStatus.Pending;
+                if (ok) FlowStatusText = $"步骤 {step.StepNo} 已完成：{step.Title}";
+                break;
+            default:
+                StatusText = $"[搁置] 步骤 {step.StepNo}「{step.Title}」{step.DependencyNote}；不伪造设备 / 算法结果（E-08/E-10）";
+                step.Status = FlowStepStatus.Deferred;
+                FlowStatusText = $"步骤 {step.StepNo} 诚实搁置：{step.DependencyNote}";
+                break;
+        }
+    }
+
+    [RelayCommand]
+    private void RunFlow()
+    {
+        int done = 0, deferred = 0;
+        foreach (var step in FlowSteps)
+        {
+            RunStep(step);
+            if (step.Status == FlowStepStatus.Done) done++;
+            else if (step.Status == FlowStepStatus.Deferred) deferred++;
+        }
+        FlowStatusText = $"全流程运行结束：本地可交付 {done} 步完成，依赖 H03/H06 诚实搁置 {deferred} 步；未伪造任何设备 / 算法结果（E-08/E-10）";
+        StatusText = FlowStatusText;
+    }
+
+    private void MarkStepDone(ScanFlowStep step)
+    {
+        step.Status = FlowStepStatus.Done;
+        FlowStatusText = $"步骤 {step.StepNo} 已完成：{step.Title}";
+    }
+
+    [RelayCommand]
+    private void ToggleInk() => IsInkMode = !IsInkMode;
+
+    [RelayCommand]
+    private void ClearInk()
+    {
+        _map.ClearAllInk();
+        StatusText = _map.StatusText;
+    }
+
+    [RelayCommand]
+    private void ExportSinf() => TryExportSinf();
+
+    /// <summary>
+    /// BR-50 / B-12：Sinf 导出。T-037 格式规范待确认，故生成**自洽的内部 Map 导出**
+    /// （Die 矩阵 / Bin 代码 / 坐标 / Ink·ReferenceDie 标记），文件头明确标注「非工业 Sinf 字节流」，
+    /// 不伪造工业格式（E-08 / E-10），与 H08 报表内部 CSV 先例一致。
+    /// </summary>
+    private bool TryExportSinf()
+    {
+        if (_map.Cells.Count == 0)
+        {
+            StatusText = "导出 Sinf 失败：请先生成 Map 图（BR-45）";
+            return false;
+        }
+        string suggested = $"wafer_{(SelectedType?.Id ?? "map")}_v{_map.RefreshVersion}.sinf.internal.csv";
+        string path = _dialogs.PickExportPath(suggested);
+        if (string.IsNullOrEmpty(path))
+        {
+            StatusText = "已取消 Sinf 导出（未生成任何文件）";
+            return false;
+        }
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("# Wafer Map 内部导出（诚实表示，非工业 Sinf 字节流）");
+        sb.AppendLine("# 说明：T-037 Sinf 文件格式规范待确认；本文件为自洽的 Map 数据导出，供工程校验 / 迁移比对；不得作为工业 Sinf 字节流使用");
+        sb.AppendLine($"# 生成时间,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"# 图谱类型,{SelectedType?.Id ?? ""},{SelectedType?.Name ?? ""}");
+        sb.AppendLine($"# 创建方式,{CreateMode}");
+        sb.AppendLine($"# 晶圆尺寸(寸),{WaferSize}");
+        sb.AppendLine($"# 扩膜,{ExpandFilm}");
+        sb.AppendLine($"# 行数,{_map.Rows}");
+        sb.AppendLine($"# 列数,{_map.Columns}");
+        sb.AppendLine($"# 墨点标记数,{_map.InkedCount}");
+        sb.AppendLine("列,行,坐标,BinKind,BinCode,等级,颜色,墨点,标签");
+        foreach (var c in _map.Cells)
+            sb.AppendLine($"{c.Column},{c.Row},{c.Coordinate},{c.Kind},{c.Code},{c.Level},{c.ColorHex},{(c.Inked ? 1 : 0)},{c.Label}");
+        try
+        {
+            System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Sinf 内部导出写入失败：{ex.Message}";
+            return false;
+        }
+        StatusText = $"已导出 Sinf 内部表示（诚实）：{System.IO.Path.GetFileName(path)}，{_map.Cells.Count} 颗 Die；非工业 Sinf 字节流（T-037 待确认）";
+        return true;
     }
 }
 

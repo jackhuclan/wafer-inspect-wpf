@@ -30,13 +30,16 @@
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
+        <views:FlowStepStatusToTextConverter x:Key="FlowStepStatusToText"/>
+        <views:FlowStepStatusToBrushConverter x:Key="FlowStepStatusToBrush"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <Grid Margin="0,0,8,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
@@ -93,6 +96,7 @@
                         </DockPanel>
                         <views:MapGridView x:Name="MapControl" Model="{Binding Map}"
                                            BrushBin="{Binding BrushBinDef}" BatchMode="{Binding IsBatchMode}"
+                                           InkMode="{Binding IsInkMode}"
                                            HorizontalAlignment="Left"
                                            AutomationProperties.AutomationId="ScanMap"/>
                         <TextBlock Text="{Binding MapStatusText}" Style="{StaticResource KeyText}" Margin="0,8,0,0"
@@ -117,6 +121,15 @@
                                     Command="{Binding ExpandCommand}" AutomationProperties.AutomationId="BtnScanExpand"/>
                             <Button Content="内缩" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
                                     Command="{Binding ShrinkCommand}" AutomationProperties.AutomationId="BtnScanShrink"/>
+                            <Button Content="Ink 笔刷" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding ToggleInkCommand}" AutomationProperties.AutomationId="BtnScanInk"
+                                    ToolTip="开启后在 Map 上单击 Die 切换墨点（BR-49，物理墨点属性）"/>
+                            <Button Content="清除 Ink" Style="{StaticResource GhostButton}" Margin="0,0,6,6"
+                                    Command="{Binding ClearInkCommand}" AutomationProperties.AutomationId="BtnScanClearInk"
+                                    ToolTip="清除全部 Ink 墨点标记"/>
+                            <Button Content="导出 Sinf（内部）" Style="{StaticResource PrimaryButton}" Margin="0,0,6,6"
+                                    Command="{Binding ExportSinfCommand}" AutomationProperties.AutomationId="BtnScanExportSinf"
+                                    ToolTip="导出自洽内部 Map 表示（非工业 Sinf 字节流，T-037 待确认）"/>
                         </WrapPanel>
                         <WrapPanel>
                             <StackPanel Margin="0,0,6,0">
@@ -179,6 +192,82 @@
                                AutomationProperties.AutomationId="ScanStatusText"/>
                     <TextBlock Text="{Binding DeferredNote}" Foreground="{StaticResource Warn}" FontSize="11.5"
                                TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 12 步流程编排（B-24 / F-3.7.3-25）：本地步可交付，依赖 H03/H06 步诚实搁置 -->
+            <Border Grid.Row="3" Style="{StaticResource Card}" Padding="14,10" Margin="0,12,0,0">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock Text="12 步 Map 创建流程（B-24）" Style="{StaticResource PanelTitle}" Margin="0,0,12,0"/>
+                        <TextBlock Text="{Binding FlowStatusText}" Style="{StaticResource MetaText}" HorizontalAlignment="Right"
+                                   TextWrapping="Wrap" AutomationProperties.AutomationId="ScanFlowStatus"/>
+                    </DockPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="320"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 左：步骤列表（自由跳转，BR-19） -->
+                        <Border Grid.Column="0" Background="{StaticResource Surface3}" CornerRadius="8" Padding="8" Margin="0,0,12,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="上一步" Style="{StaticResource GhostButton}" Command="{Binding GotoPrevCommand}"
+                                            AutomationProperties.AutomationId="BtnFlowPrev"/>
+                                    <Button Content="下一步" Style="{StaticResource GhostButton}" Margin="6,0"
+                                            Command="{Binding GotoNextCommand}" AutomationProperties.AutomationId="BtnFlowNext"/>
+                                    <Button Content="运行全流程" Style="{StaticResource PrimaryButton}"
+                                            Command="{Binding RunFlowCommand}" AutomationProperties.AutomationId="BtnFlowRun"/>
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding FlowSteps}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:ScanFlowStep}">
+                                            <Button Margin="0,0,0,4" Padding="8,6" HorizontalContentAlignment="Stretch"
+                                                    Command="{Binding DataContext.SelectStepCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" Background="{StaticResource Surface2}">
+                                                <DockPanel LastChildFill="True">
+                                                    <Ellipse Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                             Fill="{Binding Status, Converter={StaticResource FlowStepStatusToBrush}}"/>
+                                                    <TextBlock Text="{Binding StepNo, StringFormat='{}{0}. '}" VerticalAlignment="Center"
+                                                               Style="{StaticResource KeyText}"/>
+                                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Style="{StaticResource KeyText}"
+                                                               TextWrapping="Wrap"/>
+                                                </DockPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 右：选中步骤详情（诚实标注依赖） -->
+                        <Border Grid.Column="1" Background="{StaticResource Surface3}" CornerRadius="8" Padding="12">
+                            <StackPanel DataContext="{Binding SelectedStep}">
+                                <DockPanel>
+                                    <TextBlock Text="{Binding StepNo, StringFormat='步骤 {0}'}" Style="{StaticResource PanelTitle}"/>
+                                    <TextBlock Text="{Binding Title}" Style="{StaticResource PanelTitle}" Margin="8,0,0,0"/>
+                                    <Ellipse Width="14" Height="14" Fill="{Binding Status, Converter={StaticResource FlowStepStatusToBrush}}"
+                                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <TextBlock Text="能力归属：" Style="{StaticResource FieldLabel}"/>
+                                    <TextBlock Text="{Binding Owner}" Style="{StaticResource KeyText}" Margin="4,0,18,0"/>
+                                    <TextBlock Text="状态：" Style="{StaticResource FieldLabel}"/>
+                                    <TextBlock Text="{Binding Status, Converter={StaticResource FlowStepStatusToText}}" Style="{StaticResource KeyText}" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding DependencyNote}" Style="{StaticResource KeyText}" Margin="0,10,0,0"
+                                           TextWrapping="Wrap" Foreground="{StaticResource Warn}"
+                                           Visibility="{Binding DependencyNote, Converter={StaticResource NonEmptyVis}}"/>
+                                <TextBlock Text="{Binding ExportNote}" Style="{StaticResource KeyText}" Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Visibility="{Binding ExportNote, Converter={StaticResource NonEmptyVis}}"/>
+                                <Button Content="执行本步" Style="{StaticResource PrimaryButton}" Margin="0,14,0,0" HorizontalAlignment="Left"
+                                        Command="{Binding DataContext.RunStepCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" AutomationProperties.AutomationId="BtnFlowRunStep"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </StackPanel>
             </Border>
         </Grid>
