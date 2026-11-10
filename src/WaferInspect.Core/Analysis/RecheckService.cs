@@ -22,6 +22,12 @@ public interface IRecheckService
     /// 模型就绪后改为执行并写回。
     /// </summary>
     (WaferResult? Wafer, string Message, bool Executed) AiRecheck(string waferId);
+
+    /// <summary>
+    /// AI 重新推理（F-3.9.2-16 / R-H08-07）：依赖 AI 模型对扫描数据推理（BR-66）。
+    /// 模型未部署（T-035）时返回 <c>Executed=false</c> 与明确不可用说明，不静默成功、不伪造推理结果。
+    /// </summary>
+    (WaferResult? Wafer, string Message, bool Executed) ReInfer(string waferId);
 }
 
 public sealed class RecheckService : IRecheckService
@@ -61,6 +67,15 @@ public sealed class RecheckService : IRecheckService
 
         // T-035：AI 模型未部署，禁止伪造推理结果（E-10 / P1 设备与算法搁置边界）。
         return (wafer, "[搁置] AI 模型未部署（T-035），未执行推理，不伪造复判结果", false);
+    }
+
+    public (WaferResult? Wafer, string Message, bool Executed) ReInfer(string waferId)
+    {
+        var wafer = _store.Get(waferId);
+        if (wafer == null) return (null, "Wafer 不存在", false);
+
+        // R-H08-07 / BR-66：AI 重新推理依赖模型部署，未部署时明确不可用，不得静默成功（E-10）。
+        return (null, "[T-035 未部署] AI 模型未部署，重新推理不可用：不得静默成功（R-H08-07 / BR-66）。", false);
     }
 
     private void Raise() => Changed?.Invoke(this, EventArgs.Empty);

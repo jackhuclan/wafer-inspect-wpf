@@ -59,6 +59,9 @@ public static class CoreServiceCollectionExtensions
         // P3（H08，R-H08-06）：统一结果导出服务（B-13 / B-14）。
         // 报表类生成自洽内部 CSV；Sinf / Klarf 因 T-037 未确认显式返回失败，不伪造工业格式。
         services.AddSingleton<IResultExportService, ResultExportService>();
+        // P3（H08，B-12 / R-H05-06）：Sinf 生成唯一实现属 H05，导出动作由 H08 发起（B-13）；
+        // 当前因 T-037 格式规范未确认，仅诚实占位，不伪造工业格式。
+        services.AddSingleton<ISinfGenerator, SinfGenerator>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
         services.AddSingleton<IAccountStore, InMemoryAccountStore>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();

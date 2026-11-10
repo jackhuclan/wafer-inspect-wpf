@@ -211,7 +211,7 @@ H03/H04 网格坐标、H08 复判快捷键一律订阅 `Changed` 或调用 `Colo
 `FormatDieCoordinate` 负责 1-based Die 行列 → 0-based 显示坐标，界面不得自行 `-1`。
 生成 Map 图必须先有图谱文件（BR-45）；复判后不点刷新颜色不变（BR-53），`MapGridModel.Refresh`
 是唯一显式刷新入口。`R-H05-04/05/06` 属 P4/P3，当前只保留显式「未迁移」登记，不得伪造 Wafer 扫描 /
-Sinf 入口；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口（坐标/着色规则唯一来自 H05 Core，无第二份绘制规则），首页圆片概览仍消费 `WaferMapRenderer`（绘制规则同样唯一来自 `MapLevelPalette`）。**结果导出动作 B-13 已在 H08 落地（R-H08-06 统一服务）：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**。
+Sinf 入口；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口（坐标/着色规则唯一来自 H05 Core，无第二份绘制规则），首页圆片概览仍消费 `WaferMapRenderer`（绘制规则同样唯一来自 `MapLevelPalette`）。**结果导出动作 B-13 已在 H08 落地（R-H08-06 统一服务）：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**。**P3 增量 8（1.4.0）：按 Die 查看 R-H08-05 已真实落地（双击/方向键导航 + 该 Die 缺陷联动 + BR-73 无图提示）；GoldenDie/回溯图/复判图（F-3.9.3-20/23）视图框架已搭并诚实 `[搁置]`；Sinf 生成 B-12（`ISinfGenerator`，T-037）与 AI 重新推理（`IRecheckService.ReInfer`，R-H08-07/BR-66，T-035）为**明确不可用入口**，不伪造工业格式 / AI 结果**。
 
 WPF 实现约定（0.6.0 起，源于实测踩坑）：
 - **禁用 `ContentControl` + `ContentTemplate` 渲染列表**：Content 为 null 时模板不实例化，

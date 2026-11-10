@@ -1,6 +1,8 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media;
 using Microsoft.Win32;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,6 +25,7 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
     private readonly IWaferResultStore _store;
     private readonly IRecheckService _recheck;
     private readonly IResultExportService _export;
+    private readonly ISinfGenerator _sinf;
     private readonly MapGridModel _map = new();
     private string _selectedWaferId = string.Empty;
 
@@ -30,13 +33,15 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
         IMapTypeCatalog catalog,
         IWaferResultStore store,
         IRecheckService recheck,
-        IResultExportService export)
-        : base("H08", "数据分析与人工复判", "P3（增量 6：主页面 + 复判全景 Map + 复判执行；增量 7：结果输出 R-H08-06）")
+        IResultExportService export,
+        ISinfGenerator sinf)
+        : base("H08", "数据分析与人工复判", "P3（增量 6：主页面 + 复判全景 Map + 复判执行；增量 7：结果输出 R-H08-06；增量 8：按 Die 查看 R-H08-05 + GoldenDie/回溯图/复判图 + Sinf 生成 B-12 + AI 重新推理 R-H08-07）")
     {
         _catalog = catalog;
         _store = store;
         _recheck = recheck;
         _export = export;
+        _sinf = sinf;
 
         _catalog.Changed += (_, _) => RefreshAvailableBins();
         _store.Changed += (_, _) => RefreshWafers();
@@ -63,6 +68,27 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
     [ObservableProperty] private string _exportMessage = "尚未导出";
     [ObservableProperty] private bool _isExporting;
 
+    // Sinf 生成（B-12 / T-037）：H05 唯一生成、H08 发起；格式未确认，诚实占位。
+    [ObservableProperty] private string _sinfGenMessage = "Sinf 生成：格式规范待确认（T-037）";
+
+    // AI 重新推理（F-3.9.2-16 / R-H08-07 / BR-66）：模型未部署，明确不可用，不静默成功。
+    [ObservableProperty] private string _aiReinferMessage = "AI 重新推理：模型未部署（T-035），不可用";
+    [ObservableProperty] private bool _isReinfering;
+
+    /* ---------------- 按 Die 查看（R-H08-05） ---------------- */
+
+    public ObservableCollection<DefectResultRow> SelectedDieDefects { get; } = new();
+    [ObservableProperty] private bool _hasSelectedDie;
+    [ObservableProperty] private string _dieCoordinateText = "[—,—]";
+    [ObservableProperty] private string _dieDetailText = "未选中 Die（双击复判全景 Map 任意网格，或方向键导航）";
+    [ObservableProperty] private string _selectedDieColor = "#E8EDF5";
+    [ObservableProperty] private Brush _selectedDieBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0xED, 0xF5));
+
+    // GoldenDie / 回溯图 / 复判图（F-3.9.3-20 / F-3.9.3-23，诚实搁置）
+    [ObservableProperty] private string _goldenDieText = "[搁置] GoldenDie 由 H03 参考图像生成（B-09），本增量未生成，只读展示待 H03 落地";
+    [ObservableProperty] private string _backtrackImageText = "[BR-73] 未选中 Die，无回溯图";
+    [ObservableProperty] private string _recheckImageText = "[BR-73] 未选中 Die，无复判图";
+
     [ObservableProperty] private WaferRow _selectedWafer;
     [ObservableProperty] private H08BinOption _recheckBin;
     [ObservableProperty] private H08BinOption _sourceBin;
@@ -85,9 +111,10 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
 
     /// <summary>明确登记已交付与未迁移项，禁止伪造入口（与 P3 状态文档一致）。</summary>
     public string DeferredNote =>
-        "[已交付] 结果输出（B-13/B-14、R-H08-06）：缺陷详情 / 全局量测 / 2D 量测 报表已生成自洽内部 CSV；复制 WaferId / 相对路径已真实可用；" +
-        "Sinf / Klarf 因 PRD T-037 文件格式规范未确认，显式返回 [T-037 待确认] 失败提示，不伪造工业格式。" +
-        "AI 复判（T-035）模型未部署，仍标 [搁置]。所有结果为确定性合成（T-029 / T-035 未接入），已标注 [模拟结果]，不伪造设备成功。";
+        "[已交付] 按 Die 查看（R-H08-05）：双击 / 方向键选中 Die → 详情 + 该 Die 缺陷联动 + BR-73 无图提示；" +
+        "GoldenDie / 回溯图 / 复判图视图框架（F-3.9.3-20/23）已搭，图片路径 [搁置]（T-029）、GoldenDie 待 H03 生成（B-09）。" +
+        "[诚实占位] Sinf 生成（B-12，T-037 格式未确认）与 AI 重新推理（R-H08-07 / BR-66，T-035 未部署）明确不可用，不伪造工业格式 / AI 结果。" +
+        "结果输出（B-13/B-14、R-H08-06）已落地。所有结果为确定性合成（T-029 / T-035 未接入），已标注 [模拟结果]，不伪造设备成功。";
 
     /// <summary>H08 唯一复判全景 Map 模型（B-06），由共享 <c>MapGridView</c> 直接绑定。</summary>
     public MapGridModel Map => _map;
@@ -101,7 +128,8 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
         LoadSelectedMap();
         ApplyDefectFilter();
         RefreshYieldText();
-        DetailText = "未选中 Die：GoldenDie（只读 B-09）/ 回溯图 / 复判图 占位，设备采集未接入（T-029）";
+        DetailText = "选中 Die 后可在下方「按 Die 查看」查看该 Die 缺陷与图像（设备采集 T-029 未接入）。";
+        RefreshDieDetail();
     }
 
     partial void OnLotFilterChanged(string value) => RefreshWafers();
@@ -154,6 +182,62 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
         SelectedDieText = _map.Selected?.Tip ?? "未选中 Die（双击全景 Map 任意网格）";
         RevisionText = $"刷新版本 v{_map.RefreshVersion} · " +
                        (_map.NeedsRefresh ? "数据已变化，需点「刷新图谱」（BR-53）" : "颜色已同步");
+        RefreshDieDetail();
+    }
+
+    /// <summary>
+    /// 按 Die 查看（R-H08-05）：根据当前选中 Die 刷新详情、该 Die 缺陷联动与图像视口。
+    /// 由 <see cref="MapGridModel.Changed"/>（双击 / 跳转 / 方向键导航）统一驱动。
+    /// </summary>
+    private void RefreshDieDetail()
+    {
+        var cell = _map.Selected;
+        if (cell == null)
+        {
+            HasSelectedDie = false;
+            DieCoordinateText = "[—,—]";
+            DieDetailText = "未选中 Die（双击复判全景 Map 任意网格，或方向键导航）";
+            SelectedDieColor = "#E8EDF5";
+            SelectedDieBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0xED, 0xF5));
+            SelectedDieDefects.Clear();
+            BacktrackImageText = "[BR-73] 未选中 Die，无回溯图";
+            RecheckImageText = "[BR-73] 未选中 Die，无复判图";
+            return;
+        }
+
+        HasSelectedDie = true;
+        DieCoordinateText = cell.Coordinate;
+        DieDetailText = $"{cell.Coordinate} · {cell.Label}（{cell.Code}）· 等级 {cell.Level} · 颜色 {cell.ColorHex}";
+        SelectedDieColor = cell.ColorHex;
+        try { SelectedDieBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(cell.ColorHex)); }
+        catch (FormatException) { SelectedDieBrush = new SolidColorBrush(Colors.LightGray); }
+
+        // 该 Die 的缺陷（R-H08-05：缺陷列表联动）
+        var w = SelectedWafer?.Source;
+        SelectedDieDefects.Clear();
+        if (w != null)
+        {
+            foreach (var d in w.Defects.Where(d => d.Row == cell.Row && d.Column == cell.Column))
+                SelectedDieDefects.Add(DefectResultRow.From(d));
+        }
+
+        // 回溯图 / 复判图（F-3.9.3-23）：图片路径来自缺陷记录，当前为 [搁置] T-029
+        var img = SelectedDieDefects.FirstOrDefault()?.SourceImagePath;
+        if (string.IsNullOrWhiteSpace(img))
+        {
+            BacktrackImageText = "[BR-73] 该 Die 无回溯图（未保存）";
+            RecheckImageText = "[BR-73] 该 Die 无复判图（未保存）";
+        }
+        else if (img.Contains("[搁置]"))
+        {
+            BacktrackImageText = $"[搁置] 回溯图未接入（T-029）：{img}";
+            RecheckImageText = $"[搁置] 复判图未接入（T-029）：{img}";
+        }
+        else
+        {
+            BacktrackImageText = $"回溯图：{img}";
+            RecheckImageText = $"复判图：{img}";
+        }
     }
 
     private void RefreshYieldText()
@@ -284,6 +368,50 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
         RecheckMessage = executed ? "AI 复判已完成" : message;
     }
 
+    [RelayCommand]
+    private void AiReinfer()
+    {
+        var w = SelectedWafer?.Source;
+        if (w == null) { AiReinferMessage = "请先选择 Wafer"; return; }
+        IsReinfering = true;
+        try
+        {
+            var (_, message, executed) = _recheck.ReInfer(w.WaferId);
+            // R-H08-07 / BR-66：模型未部署，明确不可用，不静默成功、不伪造推理结果。
+            AiReinferMessage = executed ? "AI 重新推理已完成" : message;
+        }
+        finally
+        {
+            IsReinfering = false;
+        }
+    }
+
+    [RelayCommand]
+    private void GenerateSinf()
+    {
+        var w = SelectedWafer?.Source;
+        if (w == null) { SinfGenMessage = "请先选择 Wafer"; return; }
+        // B-12 / T-037：格式规范未确认，仅诚实占位，不伪造工业格式。
+        var r = _sinf.Generate(w);
+        SinfGenMessage = r.Message;
+    }
+
+    /// <summary>
+    /// 按 Die 查看方向键 / 箭头导航（R-H08-05；BR-52：X=列 Y=行）。
+    /// 参数 direction ∈ {Left,Right,Up,Down}；越界时 <see cref="MapGridModel.JumpTo"/> 显式返回 false（不钳制）。
+    /// </summary>
+    [RelayCommand]
+    private void MoveSelection(string direction)
+    {
+        if (_map.Selected == null) { RecheckMessage = "请先双击全景 Map 选中一颗 Die"; return; }
+        int col = _map.Selected.Column, row = _map.Selected.Row;
+        int dx = direction == "Left" ? -1 : direction == "Right" ? 1 : 0;
+        int dy = direction == "Up" ? -1 : direction == "Down" ? 1 : 0;
+        _map.JumpTo(col + dx, row + dy);
+        RefreshMapText();
+        RecheckMessage = _map.StatusText;
+    }
+
     /* ---------------- 结果输出（B-13 / B-14 / R-H08-06） ---------------- */
 
     [RelayCommand]
@@ -359,8 +487,7 @@ public sealed partial class H08AnalysisViewModel : ModuleViewModelBase
 
     private void RefreshDetail()
     {
-        if (_map.Selected == null) return;
-        DetailText = $"选中 Die {_map.Selected.Coordinate}：GoldenDie（只读 B-09）· 回溯图 [搁置] T-029 · " +
-                     "复判图 [搁置] T-029（设备采集未接入）";
+        // 复判写回后地图变化已通过 Changed 驱动 RefreshDieDetail；此处仅确保一次刷新。
+        RefreshDieDetail();
     }
 }

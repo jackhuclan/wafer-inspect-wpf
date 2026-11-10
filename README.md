@@ -50,7 +50,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（1.3.0）
+## 架构（1.4.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -129,7 +129,13 @@ AI 复判（T-035 模型未部署）显式登记未迁移。明细见
 1.3.0 交付 P3 增量 7（结果输出 B-13/B-14 / R-H08-06）：落地统一结果导出服务 `IResultExportService`，
 缺陷详情 / 全局量测 / 2D 量测报表生成自洽内部 CSV，复制 WaferId / 相对路径真实可用；
 Sinf / Klarf 因 `T-037` 文件格式规范未确认，导出时显式返回 `[T-037 待确认]` 失败提示、不写文件、不伪造工业格式
-（Sinf 生成底层唯一实现 B-12 仍属 H05 P3/P4 待实施）。明细同上。
+（Sinf 生成底层唯一实现 B-12 仍属 H05 P3/P4 待实施，1.4.0 已作为明确不可用入口登记）。明细同上。
+
+1.4.0 交付 P3 增量 8（按 Die 查看 R-H08-05 + GoldenDie/回溯图/复判图 + Sinf 生成 B-12 + AI 重新推理 R-H08-07）：
+按 Die 查看为真实可用功能（双击 / 方向键 / 箭头导航选中 Die → 详情 + 该 Die 缺陷联动 + BR-73 无图提示）；
+GoldenDie / 回溯图 / 复判图搭真实视图框架并诚实标注 `[搁置]`（T-029 图片未接入 / B-09 待 H03 生成）；
+Sinf 生成（`ISinfGenerator`，B-12 / T-037）与 AI 重新推理（`IRecheckService.ReInfer`，R-H08-07 / BR-66 / T-035）
+为**明确不可用入口**，不伪造工业格式 / AI 结果。明细见 [`docs/P3-Migration-Status.md`](docs/P3-Migration-Status.md)。
 
 ## 左侧导航配置
 

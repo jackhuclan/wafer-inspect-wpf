@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    P3 门禁脚本（H08 数据分析与人工复判：增量 6 主页面 + 增量 7 结果输出，1.3.0）。
+    P3 门禁脚本（H08 数据分析与人工复判：增量 6 主页面 + 增量 7 结果输出 + 增量 8 按 Die 查看/Sinf/AI 推理，1.4.0）。
 .DESCRIPTION
     自动执行构建 + 单元测试 + ui-error.log 空校验，收口打印 ALL DONE。
-    覆盖 docs/P3-Migration-Status.md 的验证证据（含 ResultExportServiceTests 的 T-037 诚实占位断言）。
+    覆盖 docs/P3-Migration-Status.md 的验证证据（含 ResultExportServiceTests 的 T-037 诚实占位、SinfGeneratorTests 的 B-12、RecheckServiceTests 的 R-H08-07/BR-66 断言）。
 .PARAMETER Configuration
     构建/测试配置，默认 Release。
 .PARAMETER Uia

@@ -88,4 +88,31 @@ public sealed class RecheckServiceTests
         var (_, svc) = New();
         Assert.Null(svc.BatchRecheck("NOPE", BinKind.DefectDie, BinKind.GoodDie));
     }
+
+    [Fact]
+    [BusinessRule("BR-66")]
+    public void ReInfer_NotDeployed_ReturnsExecutedFalse_AndExplicitUnavailable_NoSilentSuccess()
+    {
+        var (store, svc) = New();
+        bool raised = false;
+        svc.Changed += (_, _) => raised = true;
+
+        var (wafer, message, executed) = svc.ReInfer("WFR-203");
+
+        // R-H08-07 / BR-66：模型未部署（T-035），明确不可用，不得静默成功、不伪造推理结果。
+        Assert.False(executed);
+        Assert.Null(wafer);
+        Assert.Contains("[T-035", message);
+        Assert.Contains("重新推理不可用", message);
+        Assert.False(raised);   // 不触发变化通知、不写回
+    }
+
+    [Fact]
+    public void ReInfer_UnknownWafer_ReturnsNullWafer()
+    {
+        var (_, svc) = New();
+        var (wafer, _, executed) = svc.ReInfer("NOPE");
+        Assert.Null(wafer);
+        Assert.False(executed);
+    }
 }

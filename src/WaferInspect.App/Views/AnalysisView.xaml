@@ -4,6 +4,10 @@
              xmlns:views="clr-namespace:WaferInspectHMI.Views"
              FontFamily="Segoe UI, Microsoft YaHei" FontSize="13">
     <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="372"/>
             <ColumnDefinition Width="*"/>
@@ -11,7 +15,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- 左：Wafer 数据检索（F-3.9.2-01~21） -->
-        <Border Style="{StaticResource Card}" Grid.Column="0" Margin="0,0,12,0">
+        <Border Style="{StaticResource Card}" Grid.Row="0" Grid.Column="0" Margin="0,0,12,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="44"/>
@@ -54,7 +58,7 @@
         </Border>
 
         <!-- 中：复判全景 Map（复用 H05 MapGridView，关闭 AC-H05-04） -->
-        <Border Style="{StaticResource Card}" Grid.Column="1" Margin="0,0,12,0">
+        <Border Style="{StaticResource Card}" Grid.Row="0" Grid.Column="1" Margin="0,0,12,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="44"/>
@@ -97,7 +101,7 @@
         </Border>
 
         <!-- 右：良率 + 复判执行 + 缺陷列表 -->
-        <Grid Grid.Column="2">
+        <Grid Grid.Row="0" Grid.Column="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -160,6 +164,13 @@
                         <Button Content="AI 复判（全片）" Style="{StaticResource GhostButton}" Height="28"
                                 AutomationProperties.AutomationId="BtnAiRecheck" Command="{Binding AiRecheckCommand}"/>
                     </StackPanel>
+
+                    <Button Content="AI 重新推理（R-H08-07）" Style="{StaticResource GhostButton}" Height="28"
+                            Margin="0,0,0,6" AutomationProperties.AutomationId="BtnAiReinfer" Command="{Binding AiReinferCommand}"/>
+                    <TextBlock FontSize="11" Foreground="{StaticResource Warn}" TextWrapping="Wrap"
+                               AutomationProperties.AutomationId="TxtAiReinferMessage">
+                        <Run Text="{Binding AiReinferMessage, Mode=OneWay}"/>
+                    </TextBlock>
                 </StackPanel>
             </Border>
 
@@ -216,7 +227,136 @@
                                AutomationProperties.AutomationId="TxtExportMessage">
                         <Run Text="{Binding ExportMessage, Mode=OneWay}"/>
                     </TextBlock>
+                    <Button Content="生成 Sinf（B-12）" Style="{StaticResource GhostButton}" Height="28"
+                            Margin="0,6,0,4" AutomationProperties.AutomationId="BtnGenerateSinf" Command="{Binding GenerateSinfCommand}"/>
+                    <TextBlock FontSize="11" Foreground="{StaticResource Warn}" TextWrapping="Wrap"
+                               AutomationProperties.AutomationId="TxtSinfGenMessage">
+                        <Run Text="{Binding SinfGenMessage, Mode=OneWay}"/>
+                    </TextBlock>
                 </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- 底部：按 Die 查看（R-H08-05）+ GoldenDie / 回溯图 / 复判图（F-3.9.3-20/23） -->
+        <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 按 Die 查看（R-H08-05） -->
+            <Border Style="{StaticResource Card}" Grid.Column="0" Margin="0,0,12,0" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Text="按 Die 查看" Style="{StaticResource PanelTitle}"/>
+                        <TextBlock Text="R-H08-05 / BR-52 / BR-73" Style="{StaticResource PanelSub}" Margin="8,0,0,0"/>
+                    </DockPanel>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Border Width="22" Height="22" Margin="0,0,8,0" BorderBrush="{StaticResource LineStrong}"
+                                BorderThickness="1" Background="{Binding SelectedDieBrush}"/>
+                        <TextBlock FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   AutomationProperties.AutomationId="TxtDieDetail">
+                            <Run Text="{Binding DieDetailText, Mode=OneWay}"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+                            <Button Content="←" Width="30" Height="28" Style="{StaticResource GhostButton}" Margin="0,0,4,0"
+                                    AutomationProperties.AutomationId="BtnDieLeft" Command="{Binding MoveSelectionCommand}" CommandParameter="Left"/>
+                            <Button Content="↑" Width="30" Height="28" Style="{StaticResource GhostButton}" Margin="0,0,4,0"
+                                    AutomationProperties.AutomationId="BtnDieUp" Command="{Binding MoveSelectionCommand}" CommandParameter="Up"/>
+                            <Button Content="↓" Width="30" Height="28" Style="{StaticResource GhostButton}" Margin="0,0,4,0"
+                                    AutomationProperties.AutomationId="BtnDieDown" Command="{Binding MoveSelectionCommand}" CommandParameter="Down"/>
+                            <Button Content="→" Width="30" Height="28" Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                                    AutomationProperties.AutomationId="BtnDieRight" Command="{Binding MoveSelectionCommand}" CommandParameter="Right"/>
+                            <TextBlock FontSize="11" Foreground="{StaticResource Text2}" VerticalAlignment="Center">
+                                <Run Text="当前 "/><Run Text="{Binding DieCoordinateText, Mode=OneWay}"/><Run Text="（方向键 / 箭头导航，BR-52：X=列 Y=行）"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" FontSize="11.5" Foreground="{StaticResource Text2}" Margin="0,0,0,4"
+                                   AutomationProperties.AutomationId="TxtDieDefectHeader">
+                            <Run Text="该 Die 缺陷（"/><Run Text="{Binding SelectedDieDefects.Count, Mode=OneWay}"/><Run Text=" 项）"/>
+                        </TextBlock>
+                        <DataGrid Grid.Row="2" AutoGenerateColumns="False" ItemsSource="{Binding SelectedDieDefects}"
+                                  AutomationProperties.AutomationId="GridDieDefects" IsReadOnly="True" Margin="0,0,0,4">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="区域" Width="44" Binding="{Binding Zone}"/>
+                                <DataGridTextColumn Header="类别" Width="*" Binding="{Binding Category}"/>
+                                <DataGridTextColumn Header="长" Width="48" Binding="{Binding Length}"/>
+                                <DataGridTextColumn Header="宽" Width="48" Binding="{Binding Width}"/>
+                                <DataGridTextColumn Header="面积" Width="56" Binding="{Binding Area}"/>
+                                <DataGridTextColumn Header="复判" Width="60" Binding="{Binding ReviewState}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- GoldenDie / 回溯图 / 复判图（F-3.9.3-20 / 23） -->
+            <Border Style="{StaticResource Card}" Grid.Column="1" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Text="GoldenDie / 回溯图 / 复判图" Style="{StaticResource PanelTitle}"/>
+                        <TextBlock Text="F-3.9.3-20/23" Style="{StaticResource PanelSub}" Margin="8,0,0,0"/>
+                    </DockPanel>
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <Border Height="120" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                    Background="{StaticResource Surface3}" AutomationProperties.AutomationId="ImgGoldenDie">
+                                <TextBlock Text="GoldenDie" FontSize="11" Foreground="{StaticResource Text3}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="6"/>
+                            </Border>
+                            <TextBlock FontSize="10.5" Foreground="{StaticResource Warn}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       AutomationProperties.AutomationId="TxtGoldenDie">
+                                <Run Text="{Binding GoldenDieText, Mode=OneWay}"/>
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                            <Border Height="120" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                    Background="{StaticResource Surface3}" AutomationProperties.AutomationId="ImgBacktrack">
+                                <TextBlock Text="回溯图" FontSize="11" Foreground="{StaticResource Text3}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="6"/>
+                            </Border>
+                            <TextBlock FontSize="10.5" Foreground="{StaticResource Warn}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       AutomationProperties.AutomationId="TxtBacktrackImage">
+                                <Run Text="{Binding BacktrackImageText, Mode=OneWay}"/>
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <Border Height="120" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                    Background="{StaticResource Surface3}" AutomationProperties.AutomationId="ImgRecheck">
+                                <TextBlock Text="复判图" FontSize="11" Foreground="{StaticResource Text3}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="6"/>
+                            </Border>
+                            <TextBlock FontSize="10.5" Foreground="{StaticResource Warn}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       AutomationProperties.AutomationId="TxtRecheckImage">
+                                <Run Text="{Binding RecheckImageText, Mode=OneWay}"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

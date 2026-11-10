@@ -4,16 +4,16 @@
 > 本文件只记录**事实状态**，不虚报完成度（E-10）。
 > 阶段结论：**P3 首增量（增量 6：H08 数据分析主页面与复判全景 Map）已交付 1.2.0**；
 > **P3 增量 7（结果输出 B-13/B-14 / R-H08-06）已交付 1.3.0**：统一结果导出服务落地，报表类（缺陷详情/全局量测/2D 量测）生成自洽内部 CSV，复制 WaferId/相对路径真实可用，Sinf/Klarf 因 `T-037` 未确认显式占位不伪造；
-> 同时收口 `AC-H05-04` 的复判全景 Map 控件统一（复用 H05 `MapGridView`，无第二份绘制规则）。
-> 剩余 P3 能力（Sinf 生成 B-12、按 Die 查看、GoldenDie/回溯图/复判图可视化、AI 重新推理 T-035）待后续增量，界面显式登记未迁移，不伪造入口。
+> **P3 增量 8（按 Die 查看 R-H08-05 + GoldenDie/回溯图/复判图 F-3.9.3-20/23 + Sinf 生成 B-12 + AI 重新推理 R-H08-07）已交付 1.4.0**：按 Die 查看为真实可用功能（双击/方向键选中 → 详情 + 该 Die 缺陷联动 + BR-73 无图提示）；GoldenDie/回溯图/复判图搭真实视图框架并诚实标注 `[搁置]`（T-029 图片未接入 / B-09 待 H03 生成）；Sinf 生成（B-12，T-037）与 AI 重新推理（R-H08-07/BR-66，T-035）为**明确不可用入口**，不伪造工业格式 / AI 结果；
+> `AC-H05-04` 的复判全景 Map 控件统一已在 1.2.0 收口（复用 H05 `MapGridView`，无第二份绘制规则）。
 
 ## 1. 本轮范围与结论
 
 | 项 | 内容 |
 |---|---|
-| 交付版本 | **1.2.0**（P3 首增量 6：H08 数据分析与人工复判主页面） → **1.3.0**（P3 增量 7：结果输出 B-13/B-14 / R-H08-06） |
-| 覆盖范围 | 数据分析主页面（`analysis`，去 P0 骨架）+ 左侧 Wafer 检索（LotId/WaferId/机台号筛选）+ 中部复判全景 Map（复用 `MapGridView`，关闭 `AC-H05-04`）+ 右侧复判前/后/AI 良率面板 + 人工/批量/AI 复判执行（AI 标搁置）+ 缺陷列表多维筛选（Zone/类别/复判状态） |
-| 不覆盖（截至 1.3.0） | Sinf 生成（B-12，底层唯一实现属 H05，且 T-037 格式规范待确认）、按 Die 查看、GoldenDie/回溯图/复判图可视化、AI 重新推理（T-035 模型未部署）；复判配置（B-15）已在 P2 增量 2 随 Recipe 落库，本增量仅运行时读取 |
+| 交付版本 | **1.2.0**（P3 首增量 6：H08 数据分析与人工复判主页面） → **1.3.0**（P3 增量 7：结果输出 B-13/B-14 / R-H08-06） → **1.4.0**（P3 增量 8：按 Die 查看 R-H08-05 + GoldenDie/回溯图/复判图 + Sinf 生成 B-12 + AI 重新推理 R-H08-07） |
+| 覆盖范围 | 1.2.0 主页面 + 1.3.0 结果输出 + **1.4.0**：按 Die 查看（双击/方向键/箭头导航选中 Die → 详情 + 该 Die 缺陷联动 + BR-73 无图提示，R-H08-05）、GoldenDie/回溯图/复判图视图框架（F-3.9.3-20/23，诚实 `[搁置]`）、Sinf 生成 B-12（T-037 明确不可用）、AI 重新推理 R-H08-07（T-035 明确不可用，不静默成功） |
+| 不覆盖（截至 1.4.0） | 真实图像采集（T-029，回溯/复判图仅占位）、GoldenDie 实际生成（B-09，待 H03 参考图像）、Sinf/Klarf 真实文件字节流（T-037 格式规范待确认，仅诚实占位）、AI 推理结果（T-035 模型未部署）；复判配置（B-15）已在 P2 增量 2 随 Recipe 落库，仅运行时读取 |
 | 前置闭环 | 无新增待确认项；复用 H04 `DefectRecord`（B-23）、H05 `IMapTypeCatalog`/`MapGridModel`/`MapGridView`（B-06/B-11/BR-53）、`WaferRunController` 统计口径 |
 | 阶段门禁 | `AC-H05-04`（复判全景 Map 控件统一）已收口：唯一绘制控件 `MapGridView`；`B-11` 颜色/快捷键单一数据源；`BR-53` 复判后不自动刷新；`B-16` 复判执行写回；`B-23` 缺陷模型唯一 |
 
@@ -28,12 +28,15 @@
 | `IRecheckService` / `RecheckService` | **B-16 复判执行唯一实现**：`ManualRecheck`/`BatchRecheck` 经 store 写回并广播 `Changed`；`AiRecheck` 在模型未部署（T-035）时**仅返回 `Executed=false` 与明确搁置说明，不修改任何数据、不伪造推理**（E-10 / P1 设备与算法搁置边界） |
 | `MapGridModel` 扩展（`Maps/MapGridModel.cs`） | H08 复判全景 Map 复用 H05 唯一模型：`LoadWafer(mapTypeId, catalog, matrix, rows, cols)`（B-06/B-11，颜色/代码/等级取自 `IMapTypeCatalog`）、`Reassign(column,row,bin)`（BR-53：仅更新逻辑字段、`ColorHex` 故意保留旧值、`NeedsRefresh=true`）、`RecolorWafer(mapTypeId, catalog)`（BR-53：唯一显式刷新入口，按当前 Kind 经 catalog 重新取色） |
 | `IResultExportService` / `ResultExportService` + `ResultExportContracts`（`Analysis/`） | **R-H08-06 统一结果导出服务（B-13/B-14）**：`ResultExportTarget` 七类（缺陷详情/全局量测/2D 量测报表、Klarf、Sinf、复制相对路径、复制 WaferId）；报表类生成自洽内部 CSV（字段来自 `WaferResult` 与 `DefectRecord` B-23），不冒充 Klarf/Sinf 工业格式；`IsFormatSpecified` 对 Sinf/Klarf 返回 false（T-037 未确认）；`Export` 对 Sinf/Klarf 返回 `Success=false` + `[T-037 待确认]` 提示，不伪造；复制类返回剪贴板内容 |
+| `ISinfGenerator` / `SinfGenerator`（`Analysis/SinfGenerator.cs`） | **B-12 Sinf 生成（H05 唯一实现，R-H05-06）**：本增量因 `T-037` 格式规范未确认，仅诚实占位——`Generate` 返回 `Success=false` + `[T-037 待确认]…不伪造工业格式`；绝不臆造 Sinf 字节流。`H08` 通过 `GenerateSinfCommand` 发起（B-13 导出动作），生成与导出职责分离 |
+| `IRecheckService.ReInfer`（`Analysis/RecheckService.cs`） | **R-H08-07 / BR-66 AI 重新推理**：`ReInfer(waferId)` 在模型未部署（T-035）时返回 `(null, "[T-035 未部署] AI 模型未部署，重新推理不可用：不得静默成功（R-H08-07 / BR-66）。", false)`，不静默成功、不伪造推理结果；与 `AiRecheck` 的搁置语义一致 |
 
 ### 2.2 界面（`src/WaferInspect.App`）
 
 | 文件 | 内容 |
 |---|---|
-| `Views/AnalysisView.xaml(.cs)` | 三栏：左 Wafer 检索；中复判全景 Map（`views:MapGridView` + 生成/跳转/刷新）；右良率面板 + 复判执行 + 缺陷列表（`GridDefects` 多维筛选）+ **结果输出面板**（`CmbExportTarget` 七类目标 + `BtnExportResult` 弹 `SaveFileDialog` 写 UTF-8 / 复制类写剪贴板、`BtnCopyWaferId`/`BtnCopyRelPath`、`TxtExportMessage` 进度/失败提示）。全控件带 `AutomationProperties.AutomationId` |
+| `Views/AnalysisView.xaml(.cs)` | 三栏 + **底部面板（增量 8）**：左 Wafer 检索；中复判全景 Map（`views:MapGridView` + 生成/跳转/刷新）；右良率 + 复判执行（含 `BtnAiReinfer` / `TxtAiReinferMessage`）+ 缺陷列表 + **结果输出面板**（`BtnGenerateSinf` / `TxtSinfGenMessage`）；底部左「按 Die 查看」（`MoveSelectionCommand` 方向键/箭头导航、`GridDieDefects` 该 Die 缺陷联动、颜色块 `SelectedDieBrush`、`TxtDieDetail`/`DieCoordinateText`）+ 底部右「GoldenDie/回溯图/复判图」三视口（`TxtGoldenDie`/`TxtBacktrackImage`/`TxtRecheckImage` 诚实 `[搁置]`）。`AnalysisView.xaml.cs` 拦截 `OnPreviewKeyDown` 实现键盘方向键导航（焦点在 `TextBox`/`ComboBox` 时不抢占）。全控件带 `AutomationProperties.AutomationId` |
+| `ViewModels/Modules/H08AnalysisViewModel.cs` | 注入 `ISinfGenerator`；`SelectedDieDefects`/`DieDetailText`/`DieCoordinateText`/`SelectedDieBrush`/`HasSelectedDie`（R-H08-05，由 `MapGridModel.Changed` 经 `RefreshDieDetail` 统一驱动）、`GoldenDieText`/`BacktrackImageText`/`RecheckImageText`（F-3.9.3-20/23 诚实 `[搁置]`）、`AiReinferMessage`/`SinfGenMessage`；`MoveSelection(direction)`（BR-52 X=列 Y=行、越界不钳制）、`AiReinferCommand`（R-H08-07）、`GenerateSinfCommand`（B-12）；`DeferredNote` 更新为按 Die 查看已交付 + Sinf 生成/AI 重新推理诚实占位 |
 | `ViewModels/Modules/H08Items.cs` | `WaferRow`、`H08BinOption`（B-11）；**`ExportTargetItem`**（R-H08-06 下拉项：Display 标注 `T-037 待确认` 的 Sinf/Klarf） |
 | `ViewModels/Modules/H08AnalysisViewModel.cs` | 注入 `IResultExportService`；`ExportResultCommand`（文件类弹 `SaveFileDialog` 写 UTF-8、复制类 `Clipboard.SetText`、T-037 目标给出失败提示）、`CopyWaferIdCommand`/`CopyRelativePathCommand`；`DeferredNote` 更新为结果输出已交付 + Sinf/Klarf 诚实占位 |
 | `ViewModels/Modules/H08Items.cs` | `WaferRow`（WaferResult 投影：设计 Die/复判前缺陷/已复判数 + `PreReviewYieldText`/`PostReviewYieldText`(0.00%)/`AiReviewYieldText`）、`H08BinOption`（Kind/Code/Name/Shortcut，取自 `IMapTypeCatalog`，B-11） |
@@ -43,13 +46,15 @@
 | `Core/Navigation/PageConfiguration.cs` | `analysis` 去 `IsMigrationSkeleton=true`（与 `maps` 一致为非骨架真实页面） |
 | `App.xaml.cs` | 注册 `H08AnalysisViewModel` 为自身类型（供 `MainViewModel` 新 ctor 依赖解析） |
 
-### 2.3 业务规则断言（`WaferResultStoreTests` 8 + `RecheckServiceTests` 5 + `MapGridModelRecheckTests` 5 + `ResultExportServiceTests` 9 = 27 项；另 `NavigationConfigurationTests` 适配 analysis 去骨架）
+### 2.3 业务规则断言（`WaferResultStoreTests` 8 + `RecheckServiceTests` 7 + `MapGridModelRecheckTests` 5 + `ResultExportServiceTests` 9 + `SinfGeneratorTests` 2 = 31 项；另 `NavigationConfigurationTests` 适配 analysis 去骨架）
 
 | 规则 | 断言位置 |
 |---|---|
 | `B-11` | `MapGridModelRecheckTests.LoadWafer_BuildsCellsFromMatrix_WithColorsFromCatalog`（颜色来自 `IMapTypeCatalog`，非本地写死）、`RecheckService`/`H08BinOption` 快捷键解析来自 catalog |
 | `BR-53` | `MapGridModelRecheckTests.Reassign_KeepsOldColor_UntilExplicitRecolor`（复判后 `ColorHex` 不变、`NeedsRefresh=true`）、`RecolorWafer_IsOnlyRefreshEntry_AfterReassign`（唯一刷新入口、`RefreshVersion++`）；`Reassign` 之后 `MapGridView` 颜色不变，须点「刷新图谱」 |
 | `B-16` | `RecheckServiceTests.ManualRecheck_WritesBack_…`（写回 + `ReviewedCount+1` + 缺陷 `ReviewState=已复判`）、`BatchRecheck_RewritesAllOfKind_…`（整类改写 + 计数）、`AiRecheck_DoesNotFakeResult_…`（`Executed=false` + `[搁置]…T-035` + 不写回 + 不广播） |
+| `BR-66` / `R-H08-07` | `RecheckServiceTests.ReInfer_NotDeployed_ReturnsExecutedFalse_AndExplicitUnavailable_NoSilentSuccess`（`Executed=false` + `[T-035…重新推理不可用]` + `wafer=null` + 不广播）、`ReInfer_UnknownWafer_ReturnsNullWafer` |
+| `B-12` / `T-037` | `SinfGeneratorTests.Generate_T037Unspecified_ReturnsSuccessFalse_AndDeferredMessage`（`Success=false` + `[T-037 待确认]` + `Content=null` + `不伪造工业格式`）、`Generate_NullWafer_Throws` |
 | `B-23` | `WaferResultStoreTests.Defects_CarryDeferredSourceImagePath`（缺陷原始图片路径标注 `[搁置]`，T-029 未接入）、`ManualRecheck` 同步缺陷复判状态 |
 | 确定性种子 | `WaferResultStoreTests.Seed_*`：6 枚 Wafer、跨实例矩阵一致、Lot/Tool 分组、最外圈 `ForBiddenDie`、复判前缺陷计数口径 |
 | `B-13` / `B-14` / `BR-65` | `ResultExportServiceTests.*`：`IsFormatSpecified` 对 Sinf/Klarf 为 false、其余 true；缺陷详情/量测/良率 CSV 含表头与数据；`Klarf_ReturnsT037DeferredFailure`/`Sinf_ReturnsT037DeferredFailure`（`Success=false` + `[T-037 待确认]` + 不出文件）；`CopyWaferId`/`CopyRelativePath` 返回内容（`IsFileTarget=false`） |
@@ -62,19 +67,21 @@
 - 首页圆片概览仍消费历史 `WaferMapRenderer`，但绘制规则（等级配色）同样唯一来自 `MapLevelPalette`（H05 Core），不存在第二份坐标/着色实现；
 - 结论：**`AC-H05-04` 的「复判全景 Map 控件统一」已收口**，P2 其余项（H02~H05 增量 1~5）此前均已交付 → **P2 关闭**。
 
-## 4. 验证证据（1.2.0 / 1.3.0）
+## 4. 验证证据（1.2.0 / 1.3.0 / 1.4.0）
 
 - `dotnet build WaferInspect.slnx -c Release`：0 警告 0 错误；
-- `dotnet test WaferInspect.slnx -c Release`：**183/183 通过**（新增 `WaferResultStoreTests` 8、`RecheckServiceTests` 5、`MapGridModelRecheckTests` 5、`ResultExportServiceTests` 9，覆盖 BR-53、B-11、B-16、B-23、BR-65、确定性种子、缺陷筛选、良率计算、T-037 诚实占位）；
+- `dotnet test WaferInspect.slnx -c Release`：**187/187 通过**（1.4.0 新增 `SinfGeneratorTests` 2、`RecheckServiceTests` 增补 `ReInfer` 2，覆盖 B-12/T-037、BR-66/R-H08-07；其余 183 项见上）；
 - `WaferInspect.Smoke`：真实登录后主窗口句柄非零；
 - 门禁脚本 `tools/verify-p3-h08.ps1`：自动执行 `build` + `test` + `ui-error.log` 空校验，收口打印 `ALL DONE`；
-- 关键契约：BR-53 复判后 `MapGridView` 颜色不变、须点「刷新图谱」；B-16 AI 复判返回 `Executed=false` 与 `[搁置] AI 模型未部署（T-035）…`；B-23 缺陷 `SourceImagePath` 含 `[搁置]`。
+- 关键契约：BR-53 复判后 `MapGridView` 颜色不变、须点「刷新图谱」；B-16 AI 复判返回 `Executed=false` 与 `[搁置] AI 模型未部署（T-035）…`；**R-H08-07 `ReInfer` 返回 `Executed=false` 与 `[T-035 未部署] 重新推理不可用`、不静默成功**；**B-12 `SinfGenerator.Generate` 返回 `Success=false` 与 `[T-037 待确认]`、不伪造工业格式**；B-23 缺陷 `SourceImagePath` 含 `[搁置]`；BR-73 无回溯图提示由 `BacktrackImageText`/`RecheckImageText` 覆盖。
 
 ## 5. 已知限制（显式登记，不静默）
 
 1. **数据与设备侧能力仍搁置**：Wafer 结果为内存确定性合成，界面统一标注「[模拟结果] 设备采集（T-029）/ AI 推理（T-035）未接入」，不伪造设备执行成功；
 2. **Wafer 结果仓库为内存实现**：重启回到种子数据，落盘随 H07 配置单点确定；
-3. **结果输出（B-13/B-14 / R-H08-06）已交付，Sinf/Klarf 诚实占位**：缺陷详情/全局量测/2D 量测报表已生成自洽内部 CSV，复制 WaferId/相对路径已真实可用；**Sinf/Klarf 因 `T-037` 文件格式规范未确认，导出时显式返回 `[T-037 待确认]` 失败提示、不写文件、不伪造工业格式**；Sinf 生成底层唯一实现（B-12）仍属 H05 P3/P4 待实施；按 Die 查看、GoldenDie/回溯图/复判图可视化仍登记未迁移；
-4. **AI 重新推理（T-035）未部署**：`AiRecheck` 仅返回明确搁置结果，不调用任何模型、不写回；
-5. **H05 P3/P4 能力仍属后续增量**：Wafer 扫描 12 步（R-H05-04）、Die 笔刷/整行整列/批量/外扩内缩（R-H05-05），不伪造入口；
-6. **`AC-H05-04` 仅复判全景 Map 部分收口**：首页圆片概览沿用 P1 历史视觉控件（`WaferMapRenderer`），绘制规则唯一来自 H05 Core，无第二份实现；如需完全统一为 `MapGridView` 属产品决策，非功能性缺口。
+3. **结果输出（B-13/B-14 / R-H08-06）已交付，Sinf/Klarf 诚实占位**：缺陷详情/全局量测/2D 量测报表已生成自洽内部 CSV，复制 WaferId/相对路径已真实可用；**Sinf/Klarf 因 `T-037` 文件格式规范未确认，导出时显式返回 `[T-037 待确认]` 失败提示、不写文件、不伪造工业格式**；
+4. **按 Die 查看（R-H08-05）已交付**：双击 / 方向键 / 箭头导航选中 Die → 详情 + 该 Die 缺陷联动 + BR-73 无图提示；**GoldenDie / 回溯图 / 复判图（F-3.9.3-20/23）视图框架已搭**：图片路径来自缺陷 `SourceImagePath`（当前为 `[搁置]` T-029 未接入），GoldenDie 由 H03 参考图像生成（B-09，待 H03 落地），三视口均诚实标注 `[搁置]` / `[BR-73]`，不伪造图像；
+5. **Sinf 生成（B-12，T-037）与 AI 重新推理（R-H08-07 / BR-66，T-035）为明确不可用入口（非未实现）**：`GenerateSinfCommand` 调 `ISinfGenerator.Generate` 返回 `[T-037 待确认]`、`AiReinferCommand` 调 `IRecheckService.ReInfer` 返回 `[T-035 未部署] 重新推理不可用`；二者均不静默成功、不伪造文件 / 推理结果，界面显式提示；
+6. **AI 复判（T-035）未部署**：`AiRecheck` 仅返回明确搁置结果，不调用任何模型、不写回；
+7. **H05 P3/P4 能力仍属后续增量**：Wafer 扫描 12 步（R-H05-04）、Die 笔刷/整行整列/批量/外扩内缩（R-H05-05），不伪造入口；
+8. **`AC-H05-04` 仅复判全景 Map 部分收口**：首页圆片概览沿用 P1 历史视觉控件（`WaferMapRenderer`），绘制规则唯一来自 H05 Core，无第二份实现；如需完全统一为 `MapGridView` 属产品决策，非功能性缺口。
