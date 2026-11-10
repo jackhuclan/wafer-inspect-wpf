@@ -71,6 +71,7 @@ public partial class App : Application
                         provider.GetRequiredService<H05MapViewModel>());
                     services.AddSingleton<ModuleViewModelBase, H06DeviceControlViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H07ConfigurationViewModel>();
+                    services.AddSingleton<H08AnalysisViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H08AnalysisViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H09EventViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H10IdentityViewModel>();

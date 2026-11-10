@@ -652,6 +652,12 @@
                         <views:MapManagementView DataContext="{Binding Maps}"/>
                     </Grid>
 
+                    <!-- 视图 2e：数据分析（H08 Wafer 检索 / 复判全景 Map / 人工·批量·AI 复判，PRD 2.2.9）。
+                         Visibility 留在外层 Grid，内层视图绑定子 ViewModel；复判全景 Map 复用 H05 MapGridView（关闭 AC-H05-04）。 -->
+                    <Grid Visibility="{Binding IsAnalysis, Converter={StaticResource BoolVis}}">
+                        <views:AnalysisView DataContext="{Binding Analysis}"/>
+                    </Grid>
+
                     <!-- 视图 3：告警中心 -->
                     <Border Style="{StaticResource Card}" Visibility="{Binding IsAlarms, Converter={StaticResource BoolVis}}">
                         <Grid>

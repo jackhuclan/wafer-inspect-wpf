@@ -158,6 +158,119 @@ public sealed class MapGridModel
         Raise();
     }
 
+    /// <summary>
+    /// H08 复判全景 Map：用指定 Wafer 的逐 Die Bin 矩阵构建网格，
+    /// 颜色 / 代码 / 等级取自 mapTypeId 对应图谱的 Bin 定义（B-11，唯一数据源），不各页面自建。
+    /// </summary>
+    public bool LoadWafer(string mapTypeId, IMapTypeCatalog catalog, IReadOnlyList<BinKind> matrix, int rows, int columns)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(matrix);
+        var type = catalog.Find(mapTypeId);
+        if (type == null)
+        {
+            StatusText = $"图谱类型 {mapTypeId} 不存在（请先在图谱管理创建或选择）";
+            Raise();
+            return false;
+        }
+        if (rows <= 0 || columns <= 0 || rows > 200 || columns > 200)
+        {
+            StatusText = "行列数必须在 1~200 之间";
+            Raise();
+            return false;
+        }
+        if (matrix.Count != rows * columns)
+        {
+            StatusText = $"Bin 矩阵长度 {matrix.Count} 与 {rows}×{columns} 不一致（数据损坏？）";
+            Raise();
+            return false;
+        }
+
+        Rows = rows;
+        Columns = columns;
+        var byKind = type.Bins.ToDictionary(b => b.Kind, b => b);
+        var cells = new List<MapGridCell>(rows * columns);
+        for (int i = 0; i < matrix.Count; i++)
+        {
+            int row = i / columns;
+            int column = i % columns;
+            var kind = matrix[i];
+            var bin = byKind.TryGetValue(kind, out var b)
+                ? b
+                : kind.CreateDefault(0, MapLevelPalette.ColorFor("PL", kind.DefaultLevel()));
+            cells.Add(new MapGridCell(row, column, bin.Kind, bin.Code, bin.Level, bin.ColorHex, bin.Name));
+        }
+        Cells = cells;
+        NeedsRefresh = false;
+        RefreshVersion++;
+        StatusText = $"已载入 Wafer 全景 Map：{rows}×{columns} Die，图谱「{type.Name}」（H08 复判全景 Map，B-06）";
+        Raise();
+        return true;
+    }
+
+    /// <summary>
+    /// H08 人工 / 批量 / 快捷键复判：把指定 Die 重新分配为某 Bin。
+    /// BR-53：复判后 Die 颜色**不立即更新**——逻辑 Kind 已更新，但 ColorHex 保留旧值，
+    /// 必须点击「刷新图谱」(<see cref="RecolorWafer"/>) 才按当前 Bin 重新取色。
+    /// </summary>
+    public bool Reassign(int column, int row, BinDefinition bin)
+    {
+        ArgumentNullException.ThrowIfNull(bin);
+        var cell = Cells.FirstOrDefault(c => c.Column == column && c.Row == row);
+        if (cell == null)
+        {
+            StatusText = $"网格 {FormatCoordinate(column, row)} 不存在";
+            Raise();
+            return false;
+        }
+        // ColorHex 故意保留旧值（BR-53）；其余逻辑字段更新为复判结果。
+        var updated = cell with { Kind = bin.Kind, Code = bin.Code, Level = bin.Level, Label = bin.Name };
+        var list = Cells.ToList();
+        int at = list.FindIndex(c => c.Column == column && c.Row == row);
+        list[at] = updated;
+        Cells = list;
+        NeedsRefresh = true;
+        StatusText = $"复判已完成 Die {cell.Coordinate} → {bin.Code}（{bin.Name}）；颜色待「刷新图谱」更新（BR-53）";
+        Raise();
+        return true;
+    }
+
+    /// <summary>
+    /// H08 显式刷新：按每颗 Die 当前 Kind 经 <see cref="IMapTypeCatalog"/> 重新取色（B-11），
+    /// 是复判后颜色更新的唯一入口（BR-53）；Kind 不变，仅更新展示字段。
+    /// </summary>
+    public bool RecolorWafer(string mapTypeId, IMapTypeCatalog catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        if (Cells.Count == 0)
+        {
+            StatusText = "请先载入 Wafer 全景 Map（B-06）后再刷新";
+            Raise();
+            return false;
+        }
+        var type = catalog.Find(mapTypeId);
+        if (type == null)
+        {
+            StatusText = $"图谱类型 {mapTypeId} 不存在";
+            Raise();
+            return false;
+        }
+        var byKind = type.Bins.ToDictionary(b => b.Kind, b => b);
+        var list = Cells.ToList();
+        for (int i = 0; i < list.Count; i++)
+        {
+            var cell = list[i];
+            if (byKind.TryGetValue(cell.Kind, out var bin))
+                list[i] = cell with { Code = bin.Code, Level = bin.Level, ColorHex = bin.ColorHex, Label = bin.Name };
+        }
+        Cells = list;
+        NeedsRefresh = false;
+        RefreshVersion++;
+        StatusText = $"刷新图谱完成（v{RefreshVersion}）：颜色已按当前 Bin 更新（BR-53）";
+        Raise();
+        return true;
+    }
+
     private void Raise() => Changed?.Invoke(this, EventArgs.Empty);
 
     private void RebuildCells(IMapTypeCatalog catalog, string mapTypeId)

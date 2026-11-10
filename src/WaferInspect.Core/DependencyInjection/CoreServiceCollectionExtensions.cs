@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using WaferInspect.Core.Alignment;
+using WaferInspect.Core.Analysis;
 using WaferInspect.Core.Data;
 using WaferInspect.Core.Devices;
 using WaferInspect.Core.Events;
@@ -52,6 +53,9 @@ public static class CoreServiceCollectionExtensions
         // P2（H04，B-01/B-02/AC-P2-03）：ROI 与扫描区域的唯一数据源。
         // 向导步骤 5/6、缺陷分析的参数验证页、H01 中止调参必须复用同一单例，不得各自维护副本。
         services.AddSingleton<IRoiScanAreaStore, RoiScanAreaStore>();
+        // P3（H08）：数据分析的结果仓库与复判执行（B-16 / B-23），AI 复判明确搁置（T-035）。
+        services.AddSingleton<IWaferResultStore, WaferResultStore>();
+        services.AddSingleton<IRecheckService, RecheckService>();
         services.AddSingleton<IAuthorizationService, AuthorizationService>();
         services.AddSingleton<IAccountStore, InMemoryAccountStore>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();

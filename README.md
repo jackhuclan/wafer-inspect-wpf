@@ -50,7 +50,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（1.1.0）
+## 架构（1.2.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -64,7 +64,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 
 启动链路：`App.OnStartup` → 构建 Host → `host.Start()`（启动数据泵）→ 登录窗口（`LoginWindow`，唯一登录入口）→ 认证成功经 `LoginGate` 校验 → 解析 `MainWindow`（注入 `MainViewModel`）→ `Show()`；取消登录则应用退出。
 
-## Blade 迁移状态（P0 / P1 已关闭，P2 进行中）
+## Blade 迁移状态（P0 / P1 / P2 已关闭，P3 进行中）
 
 P0 基线：4 组 14 项导航，新增「数据分析」(`analysis`) 与「图谱管理」(`maps`)，
 两页均明确标识为尚未迁移的骨架，不展示伪造的历史业务数据。H01~H10 ViewModel 已注册，
@@ -111,10 +111,20 @@ H01 首页 Die 着色改由 MapType 目录唯一供给（B-11）；`MapGridModel
 快捷键验证；H02 图谱选择、子配方步骤 1、H03/H04 网格坐标、H01 着色全部订阅同一目录。
 `AC-P2-06`、`AC-H05-01/02/05` 通过，UIA 实测：BR-45 无图谱文件门禁、Bin 颜色 `#FF00AA`
 同步到 H01 `Level0`、快捷键 `G→GD`、BR-53 刷新版本 v3、X/Y 跳转 `[3,7]`。
-**P2 仍未完全关闭**：`AC-H05-04` 的坐标与着色规则已统一在 H05 Core，但首页圆片概览仍沿用
-P1 历史视觉控件（消费 `WaferMapRenderer` + `MapLevelPalette`），复判全景 Map 属 P3 尚未迁移；
-待 P3 复判页接入时统一为 `MapGridView` 收口。`R-H05-04/05/06`（Wafer 扫描 12 步、
+**P2 其余项（H02~H05 增量 1~5）均已交付**：`AC-H05-04` 的坐标/着色规则唯一来自 H05 Core，
+复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口（无第二份绘制规则）；首页圆片概览仍消费 `WaferMapRenderer`
+（绘制规则同样唯一来自 `MapLevelPalette`，非功能缺口）。**P2 关闭**。`R-H05-04/05/06`（Wafer 扫描 12 步、
 Die 笔刷/批量、Sinf 生成与导出）属 P4/P3，界面显式登记未迁移，不伪造入口。
+
+1.2.0 交付 P3 首增量 6（H08 数据分析与人工复判，C-02「数据分析」承载页）：
+`Core/Analysis` 落地 `WaferResult`（F-3.9.2 良率口径）、`WaferResultStore`（B-23 确定性种子 + F-3.9.2-01~02 检索）
+与 `RecheckService`（**B-16 复判执行唯一实现**：人工/批量写回，`AiRecheck` 在 T-035 模型未部署时**仅返回
+明确搁置结果、不伪造推理**，E-10）；`MapGridModel` 扩展 `LoadWafer`/`Reassign`/`RecolorWafer` 供复判全景 Map
+复用 H05 唯一控件 `MapGridView`，**收口 `AC-H05-04`（复判全景 Map 控件统一，无第二份绘制规则）**，
+并维持 BR-53（复判后不自动刷新颜色）与 B-11（颜色/快捷键来自 `IMapTypeCatalog`）。
+「数据分析」页由 P0 骨架替换为 Wafer 检索、复判全景 Map、复判前/后/AI 良率面板与缺陷多维筛选；
+AI 复判与结果导出（B-13/B-14）显式登记未迁移，不伪造入口。明细见
+[`docs/P3-Migration-Status.md`](docs/P3-Migration-Status.md)。
 
 ## 左侧导航配置
 
@@ -139,6 +149,6 @@ new NavGroupDefinition("system", "系统", /* DefaultExpanded */ false,
 - 数据仍为 1 Hz 模拟数据；良率读取已切换到可替换的 `IDataSource`，检测运行由 `WaferRunController` 模拟推进；
 - 设备连接未接入（T-029 / T-030 待确认）：所有真实设备动作暂被搁置，界面动作以「[搁置] 未下发」日志与提示明确标注，不伪造成功；H04 单幅/全部图片测试与预扫描均为确定性离线演算，AI 推理随 T-035 搁置；
 - ROI 具体算法参数项（T-014）与高级参数行为（T-032）待实机 / 算法文档确认：当前以检测 / 量测 / 全局三组可扩展集合 + 显式标注的占位项保留，未用固定滑块替代；
-- 图谱相关 P3/P4 能力未迁移：Wafer 扫描 12 步流程、Die 笔刷 / 整行整列 / 批量 / 外扩内缩、Sinf 生成与导出（R-H05-04/05/06），T-037 文件格式规范待确认；`AC-H05-04` 的 UI 控件统一待 P3 复判全景 Map 接入时收口；
+- 图谱相关 P3/P4 能力未迁移：Wafer 扫描 12 步流程、Die 笔刷 / 整行整列 / 批量 / 外扩内缩、Sinf 生成与导出（R-H05-04/05/06），T-037 文件格式规范待确认；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口，首页圆片概览仍消费 `WaferMapRenderer`（绘制规则唯一来自 H05 Core）；
 - MapType 目录仍为内存实现（重启回到种子数据），T-043「多套并存 / 删除保护 / 引用检查」按合理默认实现并显式登记，实机规则待确认；
 - 配套的高保真 HTML 原型不在本仓库内。

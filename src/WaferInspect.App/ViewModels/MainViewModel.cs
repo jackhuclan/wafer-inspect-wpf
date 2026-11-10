@@ -40,6 +40,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private readonly H02RecipeViewModel _recipes;
     private readonly H04InspectionViewModel _inspection;
     private readonly H05MapViewModel _maps;
+    private readonly H08AnalysisViewModel _analysis;
     private readonly IMapTypeCatalog _mapTypes;
     private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
@@ -68,6 +69,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         H02RecipeViewModel recipes,
         H04InspectionViewModel inspection,
         H05MapViewModel maps,
+        H08AnalysisViewModel analysis,
         IMapTypeCatalog mapTypes,
         ILogger<MainViewModel> logger)
     {
@@ -84,6 +86,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         _recipes = recipes;
         _inspection = inspection;
         _maps = maps;
+        _analysis = analysis;
         _mapTypes = mapTypes;
         _logger = logger;
 
@@ -144,6 +147,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     [ObservableProperty] private bool _isRecipes;
     [ObservableProperty] private bool _isDefects;
     [ObservableProperty] private bool _isMaps;
+    [ObservableProperty] private bool _isAnalysis;
     [ObservableProperty] private bool _isAlarms;
     [ObservableProperty] private bool _isLive;
     [ObservableProperty] private bool _isGeneric;
@@ -189,6 +193,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
 
     /// <summary>H05 图谱与 Map 数据管理页（P2），由 MapManagementView 直接绑定；MapType 与坐标规则的唯一 Owner。</summary>
     public H05MapViewModel Maps => _maps;
+    public H08AnalysisViewModel Analysis => _analysis;
 
     public List<NavGroup> NavGroups { get; private set; }
     public List<DeviceItem> Devices { get; private set; }
@@ -487,10 +492,11 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         IsRecipes = key == "recipes";
         IsDefects = key == "defects";
         IsMaps = key == "maps";
+        IsAnalysis = key == "analysis";
         IsAlarms = key == "alarms";
         IsLive = key == "live";
         IsModuleSkeleton = page.IsMigrationSkeleton;
-        IsGeneric = !(IsOverview || IsTasks || IsRecipes || IsDefects || IsMaps || IsAlarms || IsLive || IsModuleSkeleton);
+        IsGeneric = !(IsOverview || IsTasks || IsRecipes || IsDefects || IsMaps || IsAnalysis || IsAlarms || IsLive || IsModuleSkeleton);
         if (IsGeneric) BuildModuleTable(key);
 
         StatusMessage = $"当前视图：{PageCrumb}";
