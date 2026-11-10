@@ -46,6 +46,7 @@ public partial class App : Application
                     services.AddSingleton<IH02DialogService, H02DialogService>();
                     // H04 参数验证页：窗口由工厂组装，对话框服务只负责打开；关闭自动保存在窗口 Closing 中触发。
                     services.AddSingleton<IH04DialogService, H04DialogService>();
+                    services.AddSingleton<IH05DialogService, H05DialogService>();
                     services.AddTransient<Func<string, ParameterValidationDialog>>(provider => recipeId =>
                         new ParameterValidationDialog(
                             recipeId,
@@ -65,7 +66,9 @@ public partial class App : Application
                     services.AddSingleton<H04InspectionViewModel>();
                     services.AddSingleton<ModuleViewModelBase>(provider =>
                         provider.GetRequiredService<H04InspectionViewModel>());
-                    services.AddSingleton<ModuleViewModelBase, H05MapViewModel>();
+                    services.AddSingleton<H05MapViewModel>();
+                    services.AddSingleton<ModuleViewModelBase>(provider =>
+                        provider.GetRequiredService<H05MapViewModel>());
                     services.AddSingleton<ModuleViewModelBase, H06DeviceControlViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H07ConfigurationViewModel>();
                     services.AddSingleton<ModuleViewModelBase, H08AnalysisViewModel>();

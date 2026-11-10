@@ -39,6 +39,8 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private readonly H01RunViewModel _detection;
     private readonly H02RecipeViewModel _recipes;
     private readonly H04InspectionViewModel _inspection;
+    private readonly H05MapViewModel _maps;
+    private readonly IMapTypeCatalog _mapTypes;
     private readonly ILogger<MainViewModel> _logger;
     private readonly List<double> _yield = new();
     private readonly Random _rng = new(20261109);
@@ -65,6 +67,8 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         H01RunViewModel detection,
         H02RecipeViewModel recipes,
         H04InspectionViewModel inspection,
+        H05MapViewModel maps,
+        IMapTypeCatalog mapTypes,
         ILogger<MainViewModel> logger)
     {
         _catalog = catalog;
@@ -79,6 +83,8 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         _detection = detection;
         _recipes = recipes;
         _inspection = inspection;
+        _maps = maps;
+        _mapTypes = mapTypes;
         _logger = logger;
 
         // 模块内导航（例如「配方管理」跳 H02）复用主窗口统一导航入口。
@@ -86,6 +92,9 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
 
         // H09 最小闭环（P1）：告警中心页展示实时活动报警，蜂鸣器解除 / 手动处理（BR-74/75）。
         _alarmCenter.AlarmsChanged += (_, _) => RefreshLiveAlarms();
+
+        // B-11 / AC-H05-01：MapType 颜色编辑后，首页 Die 着色从同一目录重新取色。
+        _mapTypes.Changed += (_, _) => BuildDies();
 
         BuildNav();
 
@@ -134,6 +143,7 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     [ObservableProperty] private bool _isTasks;
     [ObservableProperty] private bool _isRecipes;
     [ObservableProperty] private bool _isDefects;
+    [ObservableProperty] private bool _isMaps;
     [ObservableProperty] private bool _isAlarms;
     [ObservableProperty] private bool _isLive;
     [ObservableProperty] private bool _isGeneric;
@@ -176,6 +186,9 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
 
     /// <summary>H04 检测算法与 ROI 配置页（P2），由 DefectAnalysisView 直接绑定；与向导共用唯一数据源。</summary>
     public H04InspectionViewModel Inspection => _inspection;
+
+    /// <summary>H05 图谱与 Map 数据管理页（P2），由 MapManagementView 直接绑定；MapType 与坐标规则的唯一 Owner。</summary>
+    public H05MapViewModel Maps => _maps;
 
     public List<NavGroup> NavGroups { get; private set; }
     public List<DeviceItem> Devices { get; private set; }
@@ -371,13 +384,14 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
     private void BuildDies()
     {
         int ci = Channel switch { "PL" => 0, "EL" => 1, _ => 2 };
-        var colors = ChannelColors[Channel].Select(B).ToArray();
         var map = _mapRenderer.Render(new MapRenderRequest(ci, Channel));
         string[] labels = ["正常", "轻微", "警告", "缺陷"];
 
+        // B-11：等级颜色只从 H05 MapType 目录读取，Bin 颜色编辑会同步到这里（AC-H05-01）。
         Dies = map.Cells.Select(cell => new DieItem
         {
-            X = cell.X, Y = cell.Y, Level = cell.Level, Fill = colors[cell.Level],
+            X = cell.X, Y = cell.Y, Level = cell.Level,
+            Fill = B(_mapTypes.ColorForLevel(Channel, cell.Level)),
             Tip = $"R{cell.Row + 1:00} · C{cell.Column + 1:00}   {labels[cell.Level]}   通道 {Channel}"
         }).ToList();
         DieTotal = map.Total; DieNormal = map.Normal; DieLight = map.Light;
@@ -472,10 +486,11 @@ public sealed partial class MainViewModel : ObservableBase, IDisposable
         IsTasks = key == "tasks";
         IsRecipes = key == "recipes";
         IsDefects = key == "defects";
+        IsMaps = key == "maps";
         IsAlarms = key == "alarms";
         IsLive = key == "live";
         IsModuleSkeleton = page.IsMigrationSkeleton;
-        IsGeneric = !(IsOverview || IsTasks || IsRecipes || IsDefects || IsAlarms || IsLive || IsModuleSkeleton);
+        IsGeneric = !(IsOverview || IsTasks || IsRecipes || IsDefects || IsMaps || IsAlarms || IsLive || IsModuleSkeleton);
         if (IsGeneric) BuildModuleTable(key);
 
         StatusMessage = $"当前视图：{PageCrumb}";

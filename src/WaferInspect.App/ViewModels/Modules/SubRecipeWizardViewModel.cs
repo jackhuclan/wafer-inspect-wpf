@@ -86,7 +86,9 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject, IMapReg
         var parent = _jobs.Find(parentJobId);
         HeaderText = $"子配方向导 · Job：{parent?.Name ?? parentJobId}（7 步，T-042 顺序）";
 
-        foreach (var type in mapTypes.Types) MapTypeNames.Add(type.Name);
+        // AC-H05-01：子配方步骤 1「图谱选择」与 H02 表单同样消费 H05 唯一目录。
+        ReloadMapTypeNames();
+        _mapTypes.Changed += (_, _) => ReloadMapTypeNames();
 
         _subs.Changed += (_, _) => ReloadSubs();
         // H04 唯一数据源：参数验证页 / 缺陷分析页改动后，向导步骤 5/6 立即看到同一份数据。
@@ -1548,6 +1550,15 @@ public sealed partial class SubRecipeWizardViewModel : ObservableObject, IMapReg
     private string MapTypeIdOf(string displayName)
         => _mapTypes.Types.FirstOrDefault(t => t.Name == displayName)?.Id
            ?? (string.IsNullOrWhiteSpace(displayName) ? string.Empty : displayName);
+
+    /// <summary>B-11：目录变更后同步刷新「图谱选择」下拉，不复制 MapType 定义。</summary>
+    private void ReloadMapTypeNames()
+    {
+        string keep = BiMapType;
+        MapTypeNames.Clear();
+        foreach (var type in _mapTypes.Types) MapTypeNames.Add(type.Name);
+        BiMapType = MapTypeNames.FirstOrDefault(n => n == keep) ?? MapTypeNames.FirstOrDefault() ?? string.Empty;
+    }
 
     private static TraceImagePolicy? ParseTraceImage(string text)
     {

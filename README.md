@@ -42,15 +42,15 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 | 目录 | 用途 |
 |---|---|
 | `src/WaferInspect.Core` | 纯契约与计算：`Navigation/`、`Data/`、`Devices/`、`Events/`、`Security/`、`Maps/`、`Recipes/`、`Alignment/`、`Inspection/`、`Run/`、`Simulation/`、`DependencyInjection/` |
-| `src/WaferInspect.App` | WPF 主程序：`Views/`（检测任务、配方管理、缺陷分析、子配方向导、参数验证页与共享 Map 画布）、`ViewModels/`（含 `Modules/` 的 H01~H10，其中 H01/H02/H03/H04 已实现）、`Models/`、`Services/` 等 |
-| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机、Job 仓库与 Map 导入、子配方七步向导（T-042 / B-25 / BR-19 / T-005）、H03 对位引擎、H04 ROI 与扫描区域唯一数据源（BR-35~42 / AC-P2-03/05）单测（139 项） |
+| `src/WaferInspect.App` | WPF 主程序：`Views/`（检测任务、配方管理、缺陷分析、图谱管理、子配方向导、参数验证页与共享 Map 画布 / 网格控件）、`ViewModels/`（含 `Modules/` 的 H01~H10，其中 H01/H02/H03/H04/H05 已实现）、`Models/`、`Services/` 等 |
+| `tests/WaferInspect.Core.Tests` | 导航、Core 装配、Map 快照、数据替换、设备/事件/鉴权、角色模型与登录门禁、运行状态机、Job 仓库与 Map 导入、子配方七步向导、H03 对位引擎、H04 ROI 唯一数据源（BR-35~42 / AC-P2-03/05）、H05 MapType 与 Map 网格（BR-43~45 / BR-51~53 / AC-P2-06 / AC-H05-01/02/05）单测（156 项） |
 | `tools/WaferInspect.Smoke` | 启动冒烟工具 |
 | `.github/workflows/build.yml` | CI：restore + Release 构建 + 单元测试 |
 
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（1.0.0）
+## 架构（1.1.0）
 
 | 关注点 | 实现 |
 |---|---|
@@ -101,6 +101,21 @@ H04 已交付，P2 未关闭（剩余 H05 MapType 编辑与快捷键 / AC-P2-06�
 [`docs/P2-Migration-Status.md`](docs/P2-Migration-Status.md)。完整验收状态、
 F↔R↔AC 追溯和待确认项见 [`docs/P0-Migration-Status.md`](docs/P0-Migration-Status.md)，实现硬约束见 `AGENTS.md` §6。
 
+1.1.0 交付 P2 增量 5（H05 图谱与 Map 数据管理，用户确认顺序 H03 → H04 → H05 的最后一项）：
+`Core/Maps` 把 `IMapTypeCatalog` 从只读基线重写为**可编辑目录**——BR-43 固定 8 类 Bin
+（保留原拼写 `ForBiddenDie`）、Bin 代码/类别名/等级/颜色/快捷键/备注/数量全字段可编辑、
+图谱类型 CRUD + T-043 删除保护与 Job 引用检查；`MapLevelPalette` 收敛三通道 4 级颜色，
+H01 首页 Die 着色改由 MapType 目录唯一供给（B-11）；`MapGridModel` 提供 BR-51/52 唯一
+`[列,行]` 坐标换算、Bin 着色、双击选中、X/Y 跳转与 BR-53 显式刷新；`MapGridView` 是唯一网格绘制
+控件（单张位图）。「图谱管理」页由 P0 骨架替换为 MapType 编辑、8 类 Bin 列表、Map 图预览与
+快捷键验证；H02 图谱选择、子配方步骤 1、H03/H04 网格坐标、H01 着色全部订阅同一目录。
+`AC-P2-06`、`AC-H05-01/02/05` 通过，UIA 实测：BR-45 无图谱文件门禁、Bin 颜色 `#FF00AA`
+同步到 H01 `Level0`、快捷键 `G→GD`、BR-53 刷新版本 v3、X/Y 跳转 `[3,7]`。
+**P2 仍未完全关闭**：`AC-H05-04` 的坐标与着色规则已统一在 H05 Core，但首页圆片概览仍沿用
+P1 历史视觉控件（消费 `WaferMapRenderer` + `MapLevelPalette`），复判全景 Map 属 P3 尚未迁移；
+待 P3 复判页接入时统一为 `MapGridView` 收口。`R-H05-04/05/06`（Wafer 扫描 12 步、
+Die 笔刷/批量、Sinf 生成与导出）属 P4/P3，界面显式登记未迁移，不伪造入口。
+
 ## 左侧导航配置
 
 菜单只在一个地方定义：`src/WaferInspect.Core/Navigation/NavConfiguration.cs`。
@@ -124,4 +139,6 @@ new NavGroupDefinition("system", "系统", /* DefaultExpanded */ false,
 - 数据仍为 1 Hz 模拟数据；良率读取已切换到可替换的 `IDataSource`，检测运行由 `WaferRunController` 模拟推进；
 - 设备连接未接入（T-029 / T-030 待确认）：所有真实设备动作暂被搁置，界面动作以「[搁置] 未下发」日志与提示明确标注，不伪造成功；H04 单幅/全部图片测试与预扫描均为确定性离线演算，AI 推理随 T-035 搁置；
 - ROI 具体算法参数项（T-014）与高级参数行为（T-032）待实机 / 算法文档确认：当前以检测 / 量测 / 全局三组可扩展集合 + 显式标注的占位项保留，未用固定滑块替代；
+- 图谱相关 P3/P4 能力未迁移：Wafer 扫描 12 步流程、Die 笔刷 / 整行整列 / 批量 / 外扩内缩、Sinf 生成与导出（R-H05-04/05/06），T-037 文件格式规范待确认；`AC-H05-04` 的 UI 控件统一待 P3 复判全景 Map 接入时收口；
+- MapType 目录仍为内存实现（重启回到种子数据），T-043「多套并存 / 删除保护 / 引用检查」按合理默认实现并显式登记，实机规则待确认；
 - 配套的高保真 HTML 原型不在本仓库内。

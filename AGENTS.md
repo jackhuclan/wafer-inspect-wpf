@@ -51,16 +51,19 @@ src/WaferInspect.App/
 ├─ App.xaml(.cs)              应用入口、资源字典合并、Generic Host 组合根
 ├─ Views/                     窗口与 XAML 视图（构造函数注入 ViewModel）：DetectionView（检测任务九栏）、
 │                             RecipeView（配方管理 Job CRUD + 参数表单 + 子配方向导入口）、
+│                             DefectAnalysisView / ParameterValidationDialog / MapManagementView、
+│                             MapRegionCanvas（H04 区域圈选）与 MapGridView（H05 唯一网格绘制）、
 │                             SubRecipeWizardDialog（七步向导窗口）与配套对话框 SelectJob / EfemSettings /
 │                             WaferConfirm / JobInfo / RenameJob
 ├─ ViewModels/                页面状态编排、[ObservableProperty] / [RelayCommand]
-│  └─ Modules/                H01~H10 模块 ViewModel：H01/H02/H03/H04（H01RunViewModel /
+│  └─ Modules/                H01~H10 模块 ViewModel：H01/H02/H03/H04/H05（H01RunViewModel /
 │                             H02RecipeViewModel / SubRecipeWizardViewModel 含 H03+H04 图形交互 /
-│                             H04InspectionViewModel / H04ParameterValidationViewModel）已实现，其余为骨架
+│                             H04InspectionViewModel / H04ParameterValidationViewModel /
+│                             H05MapViewModel）已实现，其余为骨架
 ├─ Models/                    绑定模型（ObservableBase / NavGroup / NavItem / 任务 / 告警 …）
 ├─ Navigation/                把 Core 的纯配置转成运行时导航模型（实例服务）
 ├─ Services/                  1 Hz 数据泵与其 IHostedService 托管；
-│                             H01/H02/H04DialogService（对话框边界实现）
+│                             H01/H02/H04/H05DialogService（对话框边界实现）
 ├─ Converters/                XAML 值转换器
 └─ Themes/                    语义色板、控件模板、状态样式
 
@@ -70,7 +73,11 @@ src/WaferInspect.Core/
 ├─ Devices/                   IDeviceGateway 与 H06 唯一命令层
 ├─ Events/                    H09 统一事件源；AlarmCenter（BR-74/75 统一告警中心）
 ├─ Security/                  H10 统一会话、显式权限判定、认证链路与统一角色模型；SelfCheckService（BR-77）
-├─ Maps/                      H05 唯一 Map 布局、等级与统计实现；MapTypeCatalog（8 类 Bin 基线，MapType 唯一 Owner）
+├─ Maps/                      H05 唯一 Owner：WaferMapRenderer（B-06/B-07 圆片坐标与统计）、
+│                             MapTypeCatalog（BR-43 八类 Bin 可编辑目录 / 快捷键 / T-043 引用检查，
+│                             B-11 单一数据源；兼容别名 SimulatedMapTypeCatalog）、
+│                             MapLevelPalette（三通道 4 级颜色，H01 着色唯一来源）、
+│                             MapGridModel（BR-51/52 唯一 [列,行] 换算、Bin 着色、BR-53 显式刷新）
 ├─ Recipes/                   H02 Job 域：JobDefinition（F-3.2.1-06~28）、JobValidator（必填/BR-15/16/17/78）、
 │                             MapFileImporter（TXT/CSV，XML/SINF 显式未接入）、IJobRepository（CRUD + 名称唯一）、
 │                             SubRecipeModels/SubRecipeWizard/SubRecipeRepository（T-005 字段、T-042 七步、B-25 门禁、BR-19 可重入）
@@ -101,7 +108,8 @@ src/WaferInspect.Core/
 运行状态机（`RunControllerTests`：晶圆内计数/结晶提交/暂停恢复/结批/BR-74 拦截等 12 项）与
 手动装载序列 / Job 目录（`ManualLoadAndJobCatalogTests` 5 项）、Job 仓库与 Map 导入
 （`JobRepositoryTests` 19 项）、子配方向导（`SubRecipeWizardTests` 16 项）、H03 对位（`AlignmentEngineTests` 26 项）、
-H04 ROI / 扫描区域唯一数据源（`RoiScanAreaTests` 27 项，覆盖 BR-35~42、AC-P2-03/05、AC-H04-01~04），共 139 项；
+H04 ROI / 扫描区域唯一数据源（`RoiScanAreaTests` 27 项，覆盖 BR-35~42、AC-P2-03/05、AC-H04-01~04）、
+H05 MapType 与 Map 网格（`MapTypeCatalogTests` 17 项，覆盖 BR-43~45、BR-51~53、AC-P2-06、AC-H05-01/02/05、T-043），共 156 项；
 `BusinessRuleAttribute` / `BusinessRuleAssert` 提供 BR 编号断言框架。
 
 规则：测试工程不得被 `src/` 引用；不写仓库目录，临时数据放 `Path.GetTempPath()`；
@@ -196,6 +204,15 @@ P2 特殊边界（1.0.0，H04 已交付）：ROI 与扫描区域的**唯一 Owne
 不得改成「点保存才保存」或「关闭丢弃」。设备侧预扫描 / 图片采集 / AI 推理继续搁置（T-029/T-035），
 结果必须标注「确定性离线演算」。
 
+P2 特殊边界（1.1.0，H05 P2 部分已交付）：`Core/Maps/IMapTypeCatalog` 是 MapType / 8 类 Bin /
+快捷键 / 等级颜色的**唯一数据源**（B-11）；H02 图谱选择、子配方步骤 1、H01 首页着色、
+H03/H04 网格坐标、H08 复判快捷键一律订阅 `Changed` 或调用 `ColorForLevel` / `ResolveShortcut`，
+禁止任何页面自建颜色表或快捷键映射。`MapGridModel` 是 `[列,行]` 坐标换算与 Bin 着色的唯一实现，
+`FormatDieCoordinate` 负责 1-based Die 行列 → 0-based 显示坐标，界面不得自行 `-1`。
+生成 Map 图必须先有图谱文件（BR-45）；复判后不点刷新颜色不变（BR-53），`MapGridModel.Refresh`
+是唯一显式刷新入口。`R-H05-04/05/06` 属 P4/P3，当前只保留显式「未迁移」登记，不得伪造 Wafer 扫描 /
+Sinf 入口；`AC-H05-04` 的 UI 控件统一待 P3 复判全景 Map 接入 `MapGridView` 时收口。
+
 WPF 实现约定（0.6.0 起，源于实测踩坑）：
 - **禁用 `ContentControl` + `ContentTemplate` 渲染列表**：Content 为 null 时模板不实例化，
   列表整体空白；集合一律内联 `ItemsControl` / `DataGrid`；
@@ -209,6 +226,11 @@ WPF 实现约定（0.6.0 起，源于实测踩坑）：
 - **界面异常处理器不得同步弹 MessageBox**（1.0.0 实测踩坑）：同步 `MessageBox.Show` 开启嵌套
   消息循环，同一异常反复进入 `DispatcherUnhandledException` 最终导致 0xC00000FD 栈溢出；
   当前实现为「先写 `ui-error.log` + `Dispatcher.BeginInvoke` 异步弹窗」；
-- H04 共享 Map 画布（`Views/MapRegionCanvas`）用单张 `WriteableBitmap` 绘制 20×20 Die 网格，
-  禁止把 400 个子元素塞进可视化树 / UIA 树；`State="{Binding Map}"` 与
-  `IMapRegionCanvasHost.AddRegion/ToggleDie` 是唯一的输入与输出契约。
+- H04 共享 Map 画布（`Views/MapRegionCanvas`）与 H05 `MapGridView` 都用单张 `WriteableBitmap`
+  绘制 20×20 Die 网格，禁止把 400 个子元素塞进可视化树 / UIA 树；`State="{Binding Map}"` /
+  `Model="{Binding Map}"` 是唯一的输入契约，`IMapRegionCanvasHost.AddRegion/ToggleDie` 是 H04 输出契约；
+- **`ComboBox IsEditable="False"` 时必须绑定 `SelectedItem` 而非 `Text`**（1.1.0 实测踩坑）：
+  `Text` 只反映 `SelectedItem`，直接绑定会显示空白；`SelectedItem` 尚未解析到选项时源属性可能
+  被写回 null，保存逻辑须判空并保留原值，不能静默改成默认枚举；
+- 界面异常落盘 `ui-error.log` 是排障首选：1.0.0 的栈溢出真因是 `<Run>` TwoWay 绑定只读属性，
+  1.1.0 的空白下拉则是 ComboBox 绑定方式，两者都靠「异常日志 + 截图」而非猜测定位。

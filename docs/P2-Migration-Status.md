@@ -4,17 +4,19 @@
 > 阶段结论：**P2 未关闭**。已交付「增量 1：H02 Job 管理与公共参数」（0.7.0）、
 > 「增量 2：子配方七步向导」（0.8.0，`T-005`/`T-042` 闭环）与
 > 「增量 3：H03 对位建模与模板匹配」（0.9.0，`T-024` 闭环）与
-> 「增量 4：H04 ROI / 扫描区域唯一数据源」（1.0.0）。剩余顺序 **H05**。
+> 「增量 4：H04 ROI / 扫描区域唯一数据源」（1.0.0）与
+> 「增量 5：H05 MapType 编辑与 Map 渲染」（1.1.0）。用户确认的 H03 → H04 → H05 顺序已全部交付；
+> 剩余为 `AC-H05-04` 的 UI 控件统一（待 P3 复判页接入）与 P3/P4 的 H05 能力，**P2 未关闭**。
 
 ## 1. 本轮范围与结论
 
 | 项 | 内容 |
 |---|---|
-| 交付增件 | 增量 1（0.7.0）+ 增量 2（0.8.0）+ 增量 3：H03 对位建模（0.9.0）+ 增量 4：H04 检测算法与 ROI 配置（1.0.0，2026-11-10） |
-| 覆盖 | 增量 1：`H02` Job CRUD + 公共参数、`H05` MapType 只读基线；增量 2：子配方七步向导（T-005 全字段 + B-25/BR-19）；增量 3：`H03` 对位能力族（B-08 唯一引擎、BR-21、Mark 网格、BR-26、T-024、GoldenDie B-09）；增量 4：`H04` ROI / 扫描区域唯一数据源（B-01/B-02、AC-P2-03）、参数验证 11 项 + 8 步闭环（R-H04-03）、关闭自动保存（AC-P2-05 / BR-40）、T-014 可扩展参数集合、B-23 统一 `DefectRecord` |
-| 不覆盖 | `R-H03-05`（Wafer 扫描对位，B-24 编排归 `H05` 12 步 Map 创建流程）、`H05` MapType 编辑与 8 类 Bin 快捷键（`AC-P2-06`）、`H08` 数据分析（P3）、H06 真实采集与 AI 推理（T-029 / T-035 搁置） |
-| 前置闭环 | `T-001`/`T-002`/`T-021`（增量 1）、`T-005`/`T-042`（增量 2）、`T-024`（增量 3）；增量 4 不依赖新的待确认项（T-014 以可扩展集合 + 显式占位处理，见 §4） |
-| 阶段门禁 | `AC-P2-01`~`AC-P2-05` 通过（`-03`：向导与参数验证页同一份 ROI / 扫描区域；`-04`：B-08 引擎唯一注册；`-05`：关闭参数页自动保存）；`AC-P2-06` 未实现 → P2 未关闭 |
+| 交付增件 | 增量 1（0.7.0）+ 增量 2（0.8.0）+ 增量 3：H03（0.9.0）+ 增量 4：H04（1.0.0）+ 增量 5：H05 MapType 与 Map 渲染（1.1.0，2026-11-10） |
+| 覆盖 | 增量 1~4 见前版；增量 5：`H05` 可编辑 `IMapTypeCatalog`（BR-43 八类 Bin、BR-44 全字段编辑、F-3.7.2-01~12、T-043 删除保护/引用检查）、`MapLevelPalette`（B-11 三通道 4 级颜色）、`MapGridModel` + `MapGridView`（BR-45/51/52/53 唯一坐标、着色、双击、跳转与显式刷新）、图谱管理页替换 P0 骨架、H02/H01/H03/H04 消费方同步（AC-H05-01）、快捷键解析（AC-H05-02） |
+| 不覆盖 | `AC-H05-04` 的 UI 控件层统一（首页圆片概览沿用 P1 视觉控件；复判全景 Map 属 P3 未迁移，届时复用 `MapGridView`）、`R-H05-04/05/06`（Wafer 扫描 12 步、笔刷/批量/外扩内缩、Sinf 生成与导出，分属 P4/P3）、`R-H03-05`（Wafer 扫描对位）、`H08` 数据分析（P3）、H06 真实采集与 AI 推理（T-029 / T-035 搁置） |
+| 前置闭环 | `T-001`/`T-002`/`T-021`（增量 1）、`T-005`/`T-042`（增量 2）、`T-024`（增量 3）；增量 4/5 不依赖新的待确认结论（T-014 以可扩展集合、T-043 以删除保护+引用检查按级 C 实现并显式登记，见 §4） |
+| 阶段门禁 | `AC-P2-01`~`AC-P2-06` 全部通过（`-06`：8 类 Bin 可编辑且快捷键在解析契约中生效）；`AC-H05-01/02/05` 通过，`AC-H05-03`（12 步流程）属 P4、`AC-H05-04` 规则层通过 / UI 控件层待 P3 收口 → **P2 未关闭** |
 
 ## 2. 已交付明细（H02 增量 1）
 
@@ -144,6 +146,45 @@ BR-35（Surface 默认且可改）/ BR-36（有效/屏蔽区域不改变检测�
 最终 0xC00000FD 栈溢出。已全部 `Mode=OneWay`，并把异常处理改为「先落盘 `ui-error.log` +
 `Dispatcher.BeginInvoke` 异步弹窗」。两条约定已写入 `AGENTS.md`。
 
+## 2quinquies. 增量 5 交付明细（H05 MapType 编辑与 Map 渲染，1.1.0）
+
+### 领域与接口（`src/WaferInspect.Core/Maps/`）
+
+| 类型 | 职责与规则口径 |
+|---|---|
+| `BinKind` / `BinKindCatalog` | **BR-43 固定 8 类枚举**（GoodDie / DefectDie / ReferenceDie / OriginalDie / BlankDie / **ForBiddenDie** / MatchFailDie / ExceptionDie，保留原拼写）；唯一中文命名、默认代码 GD/DD/RD/OD/BD/FD/MF/ED、等级 0~3、默认快捷键与说明。`AvailableKinds` 只允许启用未占用的固定类型，不得新增第 9 种 |
+| `BinDefinition` / `MapTypeDefinition` | F-3.7.2-05~10 与 BR-69 七项：Bin 类型、代码、类别名、等级、颜色、快捷键、备注、数量全部可编辑；`MapFilePath` 对应 BR-45「生成 Map 图需先导入图谱文件」 |
+| `EditableMapTypeCatalog` | `IMapTypeCatalog` 的可编辑实现：类型 CRUD / 复制 / 重命名 / 刷新、`Changed` 事件、Bin 增删与全字段校验（代码唯一、快捷键唯一、等级 0~3、颜色 #RRGGBB/#AARRGGBB）、`ResolveShortcut`（AC-H05-02）、T-043 删除保护 + Job 引用检查（延迟委托读取 `IJobRepository`，避免 DI 循环）。兼容别名 `SimulatedMapTypeCatalog` 保留既有测试与装配调用 |
+| `MapLevelPalette` | 把历史首页 PL/EL/AOI 三通道 4 级颜色收敛到一处；Bin 颜色编辑同步更新所有通道同等级颜色，H01 首页 `BuildDies` 改由 `ColorForLevel` 取色（B-11 / AC-H05-01），默认视觉不变 |
+| `MapGridModel` | **B-06 唯一坐标与着色规则**：BR-51 `[列,行]` 0-based 格式与解析、BR-52 X=列 Y=行、`FormatDieCoordinate` 统一 1-based Die 行列→0-based 显示（H03/H04 网格消费）、BR-45 生成门禁、Bin 着色、双击选中、X/Y 跳转、BR-53 `MarkDirty` 不自动变色 + `Refresh` 唯一显式刷新入口、`Changed` 通知共享控件 |
+
+### 界面（`src/WaferInspect.App`）
+
+| 文件 | 内容 |
+|---|---|
+| `Views/MapGridView.xaml(.cs)` | H05 唯一 Map 网格绘制控件：单张 `WriteableBitmap` 按 `MapGridModel.Cells` 着色，双击选中 Die，选中格蓝框；`Model="{Binding Map}"` 是唯一输入契约 |
+| `Views/MapManagementView.xaml(.cs)` + `H05MapViewModel` | 「图谱管理」页替换 P0 骨架：上部 MapType 下拉 + 新增/复制/重命名/删除/保存/刷新 + 名称与图谱文件导入；中部 8 类 Bin 代码列表（全字段可编辑、增加/移除/保存本项）与 Map 预览；下部快捷键验证、消费方同步文本、P3/P4 未迁移登记 |
+| `IH05DialogService` / `H05DialogService` | 对话框边界（图谱文件选择、类型名称、确认、提示） |
+| `MainViewModel` / `MainWindow.xaml` / `PageConfiguration` | 新增 `IsMaps` 视图承载；`maps` 页面由 `IsMigrationSkeleton=true` 改为真实页面；`BuildDies` 着色改读 `ColorForLevel`，并订阅 `Changed` 即时同步 |
+| `H02RecipeViewModel` / `SubRecipeWizardViewModel` | 订阅 `IMapTypeCatalog.Changed` 刷新「图谱选择」下拉；`MapCellRow.Tip` / `MarkCellRow.Tip` 改用 `MapGridModel.FormatDieCoordinate`，消除第二份坐标换算 |
+
+### 业务规则断言（`MapTypeCatalogTests`，17 项）
+
+BR-43（固定 8 类 / 不可新增第 9 种）/ BR-44（全字段可编辑、代码与快捷键唯一、等级与颜色格式）/ BR-45（无图谱文件拒绝生成）/ BR-51（格式与解析、1-based→0-based）/ BR-52（X=列 Y=行、越界拒绝）/ BR-53（复判后不刷新颜色不变、显式刷新后更新）；AC-P2-06 / AC-H05-01（颜色编辑同步 `ColorForLevel` 与 Map 预览）/ AC-H05-02（快捷键改后立即生效、大小写不敏感）/ T-043（多套并存、引用检查拒绝删除、最后一套保护）；默认三通道调色板保持历史视觉。
+
+### 实测证据（UIAutomation，2026-11-10，脚本 `verify-p2-h05.ps1`）
+
+- 图谱管理页 26 个控件全部 OK；新建 `MAP-H05-UIA` → 无图谱文件时「生成 Map 图失败（BR-45）」→ 填入图谱文件路径并保存 → 「已生成 Map 图：20×20 Die」；
+- 编辑首个 Bin 颜色 `#FF00AA` + 快捷键 `G` 并保存 → `MapConsumerText` 立即显示「H01 着色 Level0=#FF00AA · H02 图谱选择 3 套 · H08 复判快捷键 Space→未绑定」（**AC-H05-01**）；
+- 快捷键验证 `G→Bin GD（良品）`、`Space→未绑定`（**AC-H05-02**）；
+- 「模拟复判完成」→ 刷新版本 v2 且提示需点刷新 → 「刷新图谱」→ v3 颜色已同步（**BR-53 / AC-H05-05**）；
+- X/Y 跳转 `3,7` → 选中 Die 显示 `[3,7] · 匹配失败（MF）`（**BR-51/52**）；
+- 运行期 `ui-error.log` 为空，截图确认 Bin 类型下拉显示中文、Map 预览按 Bin 着色。
+
+### 本轮修复与登记
+
+`ComboBox IsEditable="False"` 绑定 `Text` 会显示空白（1.1.0 实测抓出），改为 `SelectedItem` 并在保存时判空保留原类型；约定已写入 `AGENTS.md`。`AC-H05-04` 的坐标 / 着色规则已统一在 H05 Core，但首页圆片概览仍沿用 P1 历史视觉控件（消费 `WaferMapRenderer` + `MapLevelPalette`），复判全景 Map 属 P3 未迁移 —— **不虚报 P2 关闭**，UI 控件统一待 P3 接入 `MapGridView` 时收口。
+
 ## 2bis. 增量 2 交付明细（子配方七步向导，0.8.0）
 
 ### 领域与接口（`src/WaferInspect.Core`）
@@ -196,7 +237,9 @@ BR-35（Surface 默认且可改）/ BR-36（有效/屏蔽区域不改变检测�
 | 2 | ~~复判设置写入~~ **已于增量 2 交付**（步骤 7，BR-20 默认） | `R-H02-07`、`BR-20/21` | `BR-21` 光照校准随 H03/H06；`H08` 消费属 P3 | 否 |
 | 3 | ~~H03 拉平 / Mark / 参考图像与模板匹配~~ **已于增量 3 交付**（0.9.0，`T-024` 闭环） | `R-H03-01~06` | `R-H03-05` Wafer 扫描对位随 H05 | 否 |
 | 4 | ~~H04 ROI 与扫描区域单一数据源~~ **已于增量 4 交付**（1.0.0，`AC-P2-03` / `AC-P2-05` 通过） | `R-H04-01~06`、`F-3.2.2-68~79`、`F-3.8.1-01~12` | 无 | 否 |
-| 5 | **H05 MapType 编辑 + 8 类 Bin 快捷键（下一增量）** | `R-H05-02/03/07`、`AC-P2-06` | DEP-08；H04 已就绪，启动无需新的待确认结论 | 否 |
+| 5 | ~~H05 MapType 编辑 + 8 类 Bin 快捷键~~ **已于增量 5 交付**（1.1.0，`AC-P2-06` / `AC-H05-01/02/05` 通过） | `R-H05-02/03/07`、`F-3.7.2-01~12` | 无 | 否 |
+| 5a | **P2 收口项：`AC-H05-04` UI 控件层统一** | 首页圆片概览 / 复判全景 Map → `MapGridView` | 复判全景 Map 属 P3，尚未迁移；规则层已统一 | 否（待 P3） |
+| 5b | **P3/P4：Wafer 扫描 12 步、笔刷/批量/外扩内缩、Sinf 生成与导出** | `R-H05-04/05/06`、`BR-46~50`、`T-037` | DEP-10 / DEP-11；格式规范待确认 | 否（阶段外） |
 | 6 | ~~`AC-P2-05` 关闭参数页自动保存~~ **已于增量 4 交付**（BR-40，`Closing → SaveOnClose`） | `F-3.8.1-11` | 无 | 否 |
 | 7 | Job 持久化（替换内存仓库） | `R-H02-01` 落盘 | `H07` 配置单点（P4）；`T-008` | 否 |
 
@@ -212,21 +255,24 @@ BR-35（Surface 默认且可改）/ BR-36（有效/屏蔽区域不改变检测�
 | `T-014` | ROI 参数设置的具体算法参数项（检测/量测/全局） | 高（原）→ 不阻塞 H04 | **按 E-08 级 C 保留处理**：实现为可扩展键值集合 + 9 个显式标注的占位项（`AlgorithmParameterCatalog`），界面动态渲染且支持增删，禁止固定滑块替代；实机清单确认后直接替换目录，不改结构。仍属 P2 关闭前的文档待确认项 |
 | `T-031` | 「推荐忽略」高级参数是否默认可见或仅高级入口 | 低 | 已在 Job 表单「高级参数」展开区与子配方字段中全量保留并可持久化；默认可见性待产品确认，不影响功能完整性 |
 | `T-032` | 模板参数、Golden 创建参数、Block 等高级参数具体行为 | 中 | 已在 H03/H04 配置模型中按级 C 保留（可编辑、可持久化），具体算法行为待算法文档 |
+| `T-043` | 图谱类型是否支持多套并存、删除保护与引用检查 | 低 | **按合理默认 + 级 C 保留实现**：支持多套并存、名称唯一；至少保留 1 套；被任一 Job 引用时明确拒绝删除。实机规则待确认，不静默省略 |
+| `T-037` | Map / Sinf / Klarf / 2D/CD 量测报表文件格式规范 | 高（P3/P4） | 属 `R-H05-06` / `H08` 导出（P3/P4），本增量不覆盖；界面显式登记未迁移，禁止用自拟格式冒充 Sinf |
 
-> 用户已确认的下一增量顺序为 **H03 → H04 → H05**；H03/H04 已交付，
-> **启动 H05 无需新的待确认结论**。
+> 用户已确认的增量顺序 **H03 → H04 → H05** 已全部交付；**P2 未关闭**（剩 `AC-H05-04` UI 控件统一，
+> 待 P3 复判全景 Map 接入），启动后续阶段无需新的待确认结论；`T-043`/`T-037` 结论待补但不阻塞当前实现。
 
-## 5. 验证证据（1.0.0）
+## 5. 验证证据（1.1.0）
 
 - `dotnet build WaferInspect.slnx -c Release`：0 警告 0 错误；
-- `dotnet test WaferInspect.slnx -c Release`：**139/139 通过**（新增 `RoiScanAreaTests` 27 项：BR-35~42、AC-P2-03/05、AC-H04-01~04、T-014 扩展集合、B-23 统一模型）；
+- `dotnet test WaferInspect.slnx -c Release`：**156/156 通过**（新增 `MapTypeCatalogTests` 17 项：BR-43~45、BR-51~53、AC-P2-06、AC-H05-01/02/05、T-043）；
 - `WaferInspect.Smoke`：真实登录后主窗口句柄非零；
-- 界面实测（UIAutomation，脚本 `verify-p2-h04.ps1`）：向导步骤 1~7 全流程、H03 三步门禁正反用例、
-  H04 步骤 5 门禁、Map 圈选与检测项保存、步骤 6 引用 ROI 生成扫描区域、
-  缺陷分析页同步显示、参数验证页 11 项控件与单幅/全部/预扫描、关闭自动保存与重进参数保持，
-  `ALL DONE` 收口；运行期 `ui-error.log` 为空；
-- 关键断言：向导改 1 个扫描区域 → 参数验证页再加 1 个 → 主页 `H04SyncText` 显示 2 个（AC-P2-03）；
-  `Detection.Threshold` 120 → 177 → 关闭后 `v1` 且重进仍为 177（AC-P2-05 / AC-H04-03）。
+- 界面实测（UIAutomation，`verify-p2-h04.ps1`）：向导 7 步、H03 三步门禁、H04 ROI/扫描区域单一数据源、
+  参数验证 11 项与关闭自动保存重进保持，`ALL DONE` 收口；运行期 `ui-error.log` 为空；
+- 界面实测（UIAutomation，`verify-p2-h05.ps1`）：图谱管理页 26 个控件全 OK、BR-45 门禁正反、
+  Bin 全字段编辑、快捷键 `G→GD`、BR-53 刷新版本 v3、X/Y 跳转 `[3,7]`，`ALL DONE` 收口；
+- 关键断言：H04 向导改 1 个扫描区域 → 参数验证页再加 1 个 → 主页显示 2 个（AC-P2-03）；
+  `Detection.Threshold` 120 → 177 → 关闭后 `v1` 且重进仍为 177（AC-P2-05 / AC-H04-03）；
+  H05 Bin 颜色 `#FF00AA` → 主页 `MapConsumerText` 显示 `H01 着色 Level0=#FF00AA`（AC-H05-01 / B-11）。
 
 ## 6. 已知限制（显式登记，不静默）
 
@@ -239,4 +285,7 @@ BR-35（Surface 默认且可改）/ BR-36（有效/屏蔽区域不改变检测�
    文件选择对话框；单幅 / 全部测试的作用范围由 `RoiScanAreaTests` 断言，界面在未选图片时明确提示
    「需先在原始图片路径中指定（F-3.8.1-09）」，不静默返回空结果；
 5. **算法参数清单待实机确认**（T-014 / T-032）：默认占位项全部标注待确认，按可扩展集合实现；
-6. **Job 与运行页尚未联通**：`IJobCatalog` 仍为 `SimulatedJobCatalog`，待向导与 Recipe 完成后切换到 `IJobRepository`（避免半成品两处数据源）。
+6. **Job 与运行页尚未联通**：`IJobCatalog` 仍为 `SimulatedJobCatalog`，待向导与 Recipe 完成后切换到 `IJobRepository`（避免半成品两处数据源）；
+7. **MapType / Job 均为内存实现**：重启回到种子数据，落盘随 H07 配置单点确定；`T-043` 删除保护与引用检查按合理默认实现，实机规则待确认；
+8. **`AC-H05-04` UI 控件层未完全统一**：坐标 / 着色 / 统计规则已收敛到 H05 Core（`WaferMapRenderer` + `MapLevelPalette` + `MapGridModel`），但首页圆片概览沿用 P1 历史视觉控件，复判全景 Map 属 P3 尚未迁移；接入时统一为 `MapGridView`，当前不存在第二份绘制规则实现；
+9. **H05 P3/P4 能力未迁移**：Wafer 扫描 12 步流程（B-24 / R-H05-04）、Die 笔刷 / 整行整列 / 内缩 / 批量 / 外扩内缩（R-H05-05）、Sinf 生成与导出（R-H05-06、T-037）均在界面显式登记，不伪造入口；`AC-H05-03` 随 P4 验证。

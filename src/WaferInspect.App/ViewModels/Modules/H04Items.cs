@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WaferInspect.Core.Inspection;
+using WaferInspect.Core.Maps;
 using WaferInspect.Core.Run;
 using WaferInspectHMI.Models;
 
@@ -38,7 +39,7 @@ public sealed class MapCellRow
     public double X => (Column - 1) * MapRegionCanvasState.CellSize;
     public double Y => (Row - 1) * MapRegionCanvasState.CellSize;
     public string Fill { get; set; } = "#E8EDF5";
-    public string Tip => $"行 {Row} / 列 {Column}（双击 = 抽检该 Die，BR-38）";
+    public string Tip => $"{MapGridModel.FormatDieCoordinate(Column, Row)} · 行 {Row} / 列 {Column}（双击 = 抽检该 Die，BR-38）";
 }
 
 /// <summary>Map 画布上的扫描区域叠加层（同一份 H04 数据源的呈现，不另存一份配置）。</summary>

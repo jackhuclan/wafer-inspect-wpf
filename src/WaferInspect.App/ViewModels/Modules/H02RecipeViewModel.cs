@@ -37,7 +37,9 @@ public sealed partial class H02RecipeViewModel : ModuleViewModelBase
         _importer = importer;
         _dialogs = dialogs;
 
-        foreach (var type in _mapTypes.Types) MapTypeNames.Add(type.Name);
+        // AC-H05-01：MapType 目录变更后，Job 表单「图谱选择」下拉立即同步（B-11 单一数据源）。
+        ReloadMapTypeNames();
+        _mapTypes.Changed += (_, _) => ReloadMapTypeNames();
 
         _repository.Changed += (_, _) => ReloadJobs();
         ReloadJobs();
@@ -472,6 +474,15 @@ public sealed partial class H02RecipeViewModel : ModuleViewModelBase
 
     private string MapTypeIdOf(string displayName)
         => _mapTypes.Types.FirstOrDefault(t => t.Name == displayName)?.Id ?? displayName;
+
+    /// <summary>B-11：H05 MapType 是唯一数据源，目录变更时只刷新下拉选项，不复制定义。</summary>
+    private void ReloadMapTypeNames()
+    {
+        string keep = FormMapType;
+        MapTypeNames.Clear();
+        foreach (var type in _mapTypes.Types) MapTypeNames.Add(type.Name);
+        FormMapType = MapTypeNames.FirstOrDefault(n => n == keep) ?? MapTypeNames.FirstOrDefault() ?? string.Empty;
+    }
 
     private static double ParseNumber(string text)
         => double.TryParse((text ?? string.Empty).Trim(), out double value) ? value : 0;

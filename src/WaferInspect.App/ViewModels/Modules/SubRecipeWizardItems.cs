@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using WaferInspect.Core.Maps;
 using WaferInspect.Core.Recipes;
 using WaferInspectHMI.Models;
 
@@ -126,5 +127,6 @@ public sealed class MarkCellRow
     /// <summary>单元格填充色（F-3.2.2-60 分类口径，默认黄 = 待检测）。</summary>
     public string Fill { get; set; } = "#F5C518";
 
-    public string Tip => $"行 {Row} / 列 {Col}（双击填入当前 Mark，F-3.2.2-59）";
+    // B-06 / BR-51：[列,行] 显示坐标统一由 H05 MapGridModel 换算，不在向导里另写一套 -1 规则。
+    public string Tip => $"{MapGridModel.FormatDieCoordinate(Col, Row)} · 行 {Row} / 列 {Col}（双击填入当前 Mark，F-3.2.2-59）";
 }

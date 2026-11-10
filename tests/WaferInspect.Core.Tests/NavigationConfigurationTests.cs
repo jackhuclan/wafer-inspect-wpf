@@ -90,7 +90,8 @@ public sealed class NavigationConfigurationTests
         var maps = Nav.PageConfiguration.PageOf("maps");
         Assert.Equal("图谱管理", maps?.Title);
         Assert.Equal("H05", maps?.OwnerModule);
-        Assert.True(maps?.IsMigrationSkeleton);
+        // 1.1.0：H05 MapType 编辑与 Map 渲染已迁移，图谱管理页不再是 P0 骨架。
+        Assert.False(maps?.IsMigrationSkeleton);
         Assert.DoesNotContain(Nav.NavConfiguration.Groups.SelectMany(group => group.Items),
             item => item.Label.Contains("Review", StringComparison.OrdinalIgnoreCase));
     }

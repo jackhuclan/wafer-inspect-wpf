@@ -34,8 +34,11 @@ public static class CoreServiceCollectionExtensions
         // P1：模拟 Job 清单；H02 配方库（P2）就绪后替换为真实 IJobCatalog 实现。
         services.AddSingleton<IJobCatalog, SimulatedJobCatalog>();
 
-        // P2（H02）：Job 仓库、Map 导入与 MapType 目录；H05 是 MapType 的唯一 Owner。
-        services.AddSingleton<IMapTypeCatalog, SimulatedMapTypeCatalog>();
+        // P2（H02/H05）：Job 仓库、Map 导入与可编辑 MapType 目录；H05 是 MapType 的唯一 Owner（B-11）。
+        // 引用检查通过延迟委托读取 Job 仓库，避免 InMemoryJobRepository ↔ IMapTypeCatalog 构造循环。
+        services.AddSingleton<IMapTypeCatalog>(provider => new EditableMapTypeCatalog(
+            () => provider.GetRequiredService<IJobRepository>().Jobs.Select(j => j.MapTypeId).ToList()));
+        services.AddSingleton<MapGridModel>();
         services.AddSingleton<IJobRepository, InMemoryJobRepository>();
         services.AddSingleton<ISubRecipeRepository, InMemorySubRecipeRepository>();
         services.AddSingleton<MapFileImporter>();

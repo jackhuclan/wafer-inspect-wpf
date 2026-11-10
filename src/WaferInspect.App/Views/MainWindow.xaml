@@ -646,6 +646,12 @@
                         <views:DefectAnalysisView DataContext="{Binding Inspection}"/>
                     </Grid>
 
+                    <!-- 视图 2d：图谱管理（H05 MapType 编辑与 Map 预览，PRD 4.5.1 / R-H05-02/03/07）。
+                         Visibility 留在外层 Grid，内层视图绑定子 ViewModel。 -->
+                    <Grid Visibility="{Binding IsMaps, Converter={StaticResource BoolVis}}">
+                        <views:MapManagementView DataContext="{Binding Maps}"/>
+                    </Grid>
+
                     <!-- 视图 3：告警中心 -->
                     <Border Style="{StaticResource Card}" Visibility="{Binding IsAlarms, Converter={StaticResource BoolVis}}">
                         <Grid>
