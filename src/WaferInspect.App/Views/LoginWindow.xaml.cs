@@ -21,7 +21,9 @@ public partial class LoginWindow : Window
         DataContext = _vm;
         _vm.LoginSucceeded += (_, _) => DialogResult = true;
         _vm.CancelRequested += (_, _) => DialogResult = false;
-        UserIdBox.Text = string.Empty;
+        // 预填默认凭据（admin / 123456）：UserId 由 TwoWay 绑定从 VM 默认值渲染，
+        // 密码框因安全设计不走绑定，这里直接赋值并借 PasswordChanged 同步进 VM。
+        PasswordBox.Password = _vm.Password;
         Loaded += (_, _) => UserIdBox.Focus();
     }
 

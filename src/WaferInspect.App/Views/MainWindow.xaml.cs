@@ -166,6 +166,8 @@ public partial class MainWindow : Window
             btn.Padding = _navCollapsed ? new Thickness(0) : new Thickness(10, 0, 10, 0);
         }
         _vm.ShowNotification(_navCollapsed ? "导航栏已收起为图标模式" : "导航栏已展开");
+        // 折叠态显示专用展开按钮，展开态隐藏；保证收起后仍能恢复。
+        ExpandNavButton.Visibility = _navCollapsed ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /* ---------------- 任务详情 ---------------- */

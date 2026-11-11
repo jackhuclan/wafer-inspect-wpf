@@ -27,8 +27,9 @@ public sealed partial class LoginViewModel : ObservableObject
     /// <summary>用户主动取消登录触发；应用据此正常退出，不创建主窗口。</summary>
     public event EventHandler? CancelRequested;
 
-    [ObservableProperty] private string _userId = string.Empty;
-    [ObservableProperty] private string _password = string.Empty;
+    // 初始账号默认值（BR-76 / T-027 已确认保留 admin / 123456），直接预填登录框，减少手工输入。
+    [ObservableProperty] private string _userId = "admin";
+    [ObservableProperty] private string _password = "123456";
     [ObservableProperty] private string _errorMessage = string.Empty;
 
     /// <summary>登录命令；失败原因原样展示，不做静默重试或放行（E-05）。</summary>

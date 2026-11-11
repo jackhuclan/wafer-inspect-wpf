@@ -50,7 +50,7 @@ dotnet run --project tools/WaferInspect.Smoke -c Release -- <绝对路径/WaferI
 组织规范见 [AGENTS.md](AGENTS.md)，代码风格见 `.editorconfig`，
 版本与共享元数据在 `Directory.Build.props`，NuGet 包版本在 `Directory.Packages.props`（CPM）。
 
-## 架构（1.10.1）
+## 架构（1.10.2）
 
 | 关注点 | 实现 |
 |---|---|
@@ -174,6 +174,14 @@ new NavGroupDefinition("system", "系统", /* DefaultExpanded */ false,
 - 图谱相关 P4 能力：Die 笔刷 / 整行整列 / 矩形批量 / 外扩内缩（R-H05-05）已在 1.5.0（P4-A）由独立「Wafer 扫描」页真实交付；**Wafer 扫描 12 步流程（R-H05-04 / B-24）与 Sinf 诚实内部导出（R-H05-06 / BR-50，B-12 唯一实现属 H05）已在 1.6.0（P4-B）交付**——流程编排层真实落地、依赖 H03/H06 的步骤（3~9）诚实 `[搁置]`，Sinf 为自洽内部 CSV 并标注「非工业 Sinf 字节流（T-037 待确认）」，不伪造工业格式；**H03 参考图像（B-09）Golden Die 规划与落格已在 1.7.0（P5）由 Wafer 扫描页接入 `ReferenceImagePlanner` 真实交付**：本地确定性规划四色分类 + BR-29 耗时指数 + BR-30 重生成标记，规划结果经 `MapGridModel.EditCell` 落格为 B-11 参考 Die（RD），流程步骤 5 重分类为 `Planned`；真实图像拟合仍属 H06（T-029 搁置）不伪造；**H06 扫描执行/对位离线演算沙盒已在 1.8.0（P6）交付**：`OfflineScanExecutor` 在合成 FOV 上真实运行 B-08 引擎与 H03 对位、结果标注「确定性离线演算、非真实设备」，12 步流程步骤 7/8 标记 `Planned`；**Sinf 导出已在 1.9.0（P7）抽象为可插拔 `ISinfExporter`**：默认内部 CSV（诚实，T-037 待确认），工业字节流为预留实现位（`IndustrialSinfExporter` 抛诚实异常、UI 禁用选项），规范到位即替换、不伪造；**结果导出动作（B-13）已在 H08 落地：报表类生成自洽内部 CSV、复制 WaferId/相对路径真实可用，Sinf/Klarf 因 T-037 显式占位不伪造**；`AC-H05-04` 的复判全景 Map 已在 1.2.0 复用 `MapGridView` 收口，首页圆片概览仍消费 `WaferMapRenderer`（绘制规则唯一来自 H05 Core）；**H06 扫描执行/对位已在 1.10.0（P8）抽象为可插拔 `IScanExecutor`**：默认 `OfflineScanExecutor`（合成 FOV + B-08 引擎 + H03 对位，确定性离线演算）经 `WaferScanViewModel` 装配缝委托，`DeviceScanExecutor` 为预留实现位（T-029/T-035 未闭环时 `Execute` 抛 `DeviceScanNotConfirmedException`、绝不注册生产 `IDeviceGateway`、绝不伪造设备结果），UI 依 T 状态禁用「真实设备扫描」选项；闭环后仅实现 `DeviceScanExecutor` 并切换 `SelectedScanExecutorKind = Device` 即完成真实设备替换，调用方与 UI 不变；
 - MapType 目录仍为内存实现（重启回到种子数据），T-043「多套并存 / 删除保护 / 引用检查」按合理默认实现并显式登记，实机规则待确认；
 - 配套的高保真 HTML 原型不在本仓库内。
+
+## 1.10.2 交互补强（侧栏展开入口 + 登录默认值）
+
+基于用户反馈的两处体验修复：
+
+- **侧栏折叠后提供展开入口**：原「收起导航」按钮位于 `SidebarFooter`，收起时该区被置为 `Collapsed`，导致收起后无任何控件可恢复展开。新增专用「展开导航」按钮（`SidebarExpandButton`，汉堡图标，置于折叠态底部），仅在侧栏收起时可见，点击复用 `CollapseNav_Click` 切换回展开态；展开态自动隐藏，确保收起 / 展开可完整往返；
+- **登录框预填默认凭据**：`LoginViewModel` 的 `UserId` / `Password` 默认值设为 `admin` / `123456`（BR-76 / T-027 已确认保留），`LoginWindow` 移除强制清空 `UserIdBox` 的逻辑，并直接为 `PasswordBox` 赋值以借 `PasswordChanged` 同步进 ViewModel；打开登录窗口即带默认账号，可直接回车登录；
+- 构建 0 警告 0 错误，冒烟（UIAutomation 真实登录）与侧栏折叠 / 展开往返均通过运行时验证。
 
 ## 1.10.1 界面样式统一（UI 打磨）
 

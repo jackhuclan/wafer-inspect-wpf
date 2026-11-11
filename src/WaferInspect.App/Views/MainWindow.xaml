@@ -133,7 +133,7 @@
             <!-- 左侧功能导航 -->
             <Border x:Name="Sidebar" Grid.Column="0" Background="{StaticResource Side}">
                 <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding NavGroups}" Margin="0,4,0,8">
                             <ItemsControl.ItemTemplate>
@@ -199,6 +199,16 @@
                                     HorizontalContentAlignment="Left" Click="CollapseNav_Click"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- 折叠态专用展开按钮：侧栏收起为图标模式后，用于恢复展开；展开态自动隐藏 -->
+                    <Button x:Name="ExpandNavButton" Grid.Row="2" Visibility="Collapsed"
+                            Click="CollapseNav_Click" ToolTip="展开导航"
+                            Width="40" Height="40" Margin="0,8,0,12" HorizontalAlignment="Center"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand"
+                            AutomationProperties.AutomationId="SidebarExpandButton">
+                        <Path Data="M4 7h16 M4 12h16 M4 17h16" Stroke="#C7D6EA" StrokeThickness="1.8"
+                              StrokeEndLineCap="Round" Width="18" Height="18" Stretch="Uniform"/>
+                    </Button>
                 </Grid>
             </Border>
 
