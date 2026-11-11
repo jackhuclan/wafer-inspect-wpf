@@ -1,4 +1,4 @@
-<Window x:Class="WaferInspectHMI.Views.MainWindow"
+<Window xmlns:hc="https://handyorg.github.io/handycontrol" x:Class="WaferInspectHMI.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -315,7 +315,7 @@
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="*"/><RowDefinition Height="44"/></Grid.RowDefinitions>
                                         <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                            <DockPanel>
+                                            <DockPanel VerticalAlignment="Center">
                                                 <TextBlock Text="晶圆检测结果" Style="{StaticResource PanelTitle}"/>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                                     <RadioButton Content="PL" Style="{StaticResource ChannelTab}" IsChecked="True" Command="{Binding ChannelCommand}" CommandParameter="PL"/>
@@ -396,7 +396,7 @@
                                         <Grid>
                                             <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="22"/></Grid.RowDefinitions>
                                             <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                                <DockPanel>
+                                                <DockPanel VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="实时良率趋势" Style="{StaticResource PanelTitle}"/>
                                                         <Border Background="{StaticResource OkSoft}" CornerRadius="10" Padding="7,2" Margin="9,0,0,0">
@@ -436,7 +436,7 @@
                                         <Grid>
                                             <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                             <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                                <DockPanel>
+                                                <DockPanel VerticalAlignment="Center">
                                                     <TextBlock Text="缺陷分类分布" Style="{StaticResource PanelTitle}"/>
                                                     <TextBlock Text="本班次累计 1,248 颗" Style="{StaticResource PanelSub}" HorizontalAlignment="Right"/>
                                                 </DockPanel>
@@ -466,7 +466,7 @@
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                         <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                            <DockPanel>
+                                            <DockPanel VerticalAlignment="Center">
                                                 <TextBlock Text="设备状态" Style="{StaticResource PanelTitle}"/>
                                                 <Button Content="全部 ›" Style="{StaticResource TextLink}" HorizontalAlignment="Right"
                                                         Command="{Binding NavigateCommand}" CommandParameter="devices"/>
@@ -514,7 +514,7 @@
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                         <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                            <DockPanel>
+                                            <DockPanel VerticalAlignment="Center">
                                                 <TextBlock Text="检测任务" Style="{StaticResource PanelTitle}"/>
                                                 <TextBlock Text="共 9 个任务" Style="{StaticResource PanelSub}" Margin="9,0,0,0"/>
                                                 <Button Content="查看全部 ›" Style="{StaticResource TextLink}" HorizontalAlignment="Right"
@@ -574,7 +574,7 @@
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/><RowDefinition Height="30"/></Grid.RowDefinitions>
                                         <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                            <DockPanel>
+                                            <DockPanel VerticalAlignment="Center">
                                                 <TextBlock Text="告警信息" Style="{StaticResource PanelTitle}"/>
                                                 <Border Background="{StaticResource DangerSoft}" CornerRadius="10" Padding="7,2" Margin="9,0,0,0">
                                                     <TextBlock Text="{Binding AlarmBadgeText}" Foreground="{StaticResource Danger}" FontSize="10.5" FontWeight="SemiBold"/>
@@ -669,7 +669,7 @@
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                <DockPanel>
+                                <DockPanel VerticalAlignment="Center">
                                     <TextBlock Text="告警事件" Style="{StaticResource PanelTitle}"/>
                                     <Border Background="{StaticResource DangerSoft}" CornerRadius="10" Padding="7,2" Margin="9,0,0,0">
                                         <TextBlock Text="{Binding AlarmBadgeText}" Foreground="{StaticResource Danger}" FontSize="10.5" FontWeight="SemiBold"/>
@@ -830,7 +830,7 @@
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                <DockPanel>
+                                <DockPanel VerticalAlignment="Center">
                                     <TextBlock Text="模块明细" Style="{StaticResource PanelTitle}"/>
                                     <TextBlock Text="{Binding PageCrumb}" Style="{StaticResource PanelSub}" HorizontalAlignment="Right"/>
                                 </DockPanel>
@@ -844,7 +844,7 @@
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="14,0">
-                                <DockPanel>
+                                <DockPanel VerticalAlignment="Center">
                                     <TextBlock Text="P0 迁移骨架" Style="{StaticResource PanelTitle}"/>
                                     <TextBlock Text="{Binding CurrentModuleId}" Style="{StaticResource PanelSub}" HorizontalAlignment="Right"/>
                                 </DockPanel>

@@ -1,4 +1,4 @@
-<UserControl x:Class="WaferInspectHMI.Views.MapManagementView"
+<UserControl xmlns:hc="https://handyorg.github.io/handycontrol" x:Class="WaferInspectHMI.Views.MapManagementView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:WaferInspectHMI.ViewModels.Modules"
@@ -9,18 +9,6 @@
             <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Foreground" Value="{StaticResource Text3}"/>
             <Setter Property="Margin" Value="0,0,0,3"/>
-        </Style>
-        <Style x:Key="FieldBox" TargetType="TextBox">
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Padding" Value="7,0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="FontSize" Value="12.5"/>
-        </Style>
-        <Style x:Key="FieldCombo" TargetType="ComboBox">
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Padding" Value="6,0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="FontSize" Value="12.5"/>
         </Style>
         <Style x:Key="FieldItem" TargetType="StackPanel">
             <Setter Property="Width" Value="150"/>
@@ -46,7 +34,7 @@
                 <StackPanel>
                     <DockPanel>
                         <TextBlock Text="MapType 编辑" Style="{StaticResource PanelTitle}" Margin="0,0,12,0"/>
-                        <ComboBox Width="250" Margin="0,0,8,0" Style="{StaticResource FieldCombo}"
+                        <hc:ComboBox Width="250" Margin="0,0,8,0"
                                   ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType, Mode=TwoWay}"
                                   DisplayMemberPath="Display"
                                   AutomationProperties.AutomationId="ComboMapType"/>
@@ -66,12 +54,12 @@
                     <WrapPanel Margin="0,10,0,0">
                         <StackPanel Margin="0,0,10,0">
                             <TextBlock Text="图谱类型名称" Style="{StaticResource FieldLabel}"/>
-                            <TextBox Width="240" Style="{StaticResource FieldBox}" Text="{Binding TypeName}"
+                            <TextBox Width="240" Text="{Binding TypeName}"
                                      AutomationProperties.AutomationId="FieldMapTypeName"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,10,0">
                             <TextBlock Text="图谱文件（BR-45 生成 Map 图前置）" Style="{StaticResource FieldLabel}"/>
-                            <TextBox Width="360" Style="{StaticResource FieldBox}" Text="{Binding MapFilePath}"
+                            <TextBox Width="360" Text="{Binding MapFilePath}"
                                      AutomationProperties.AutomationId="FieldMapPath"/>
                         </StackPanel>
                         <Button Content="导入图谱文件…" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Height="28"
@@ -102,7 +90,7 @@
                                        HorizontalAlignment="Right" TextWrapping="Wrap" MaxWidth="360"/>
                         </DockPanel>
                         <WrapPanel Grid.Row="1" Margin="0,8,0,10">
-                            <ComboBox Width="150" Style="{StaticResource FieldCombo}"
+                            <hc:ComboBox Width="150"
                                       ItemsSource="{Binding AvailableKindNames}" SelectedItem="{Binding NewBinKind, Mode=TwoWay}" IsEditable="False"
                                       AutomationProperties.AutomationId="ComboNewBinKind"/>
                             <Button Content="增加 Bin 代码" Style="{StaticResource GhostButton}" Margin="8,0,0,0"
@@ -123,36 +111,36 @@
                                                 <WrapPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="Bin 类型（BR-43）" Style="{StaticResource FieldLabel}"/>
-                                                        <ComboBox Style="{StaticResource FieldCombo}" SelectedItem="{Binding KindText, Mode=TwoWay}" IsEditable="False"
+                                                        <hc:ComboBox SelectedItem="{Binding KindText, Mode=TwoWay}" IsEditable="False"
                                                                   ItemsSource="{Binding DataContext.FixedKinds, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                                                     </StackPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="Bin 代码（BR-44）" Style="{StaticResource FieldLabel}"/>
-                                                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <TextBox Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}"/>
                                                     </StackPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="类别名称" Style="{StaticResource FieldLabel}"/>
-                                                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
                                                     </StackPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="等级 0~3" Style="{StaticResource FieldLabel}"/>
-                                                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding Level, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <hc:NumericUpDown Value="{Binding Level, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                                     </StackPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="颜色 #RRGGBB" Style="{StaticResource FieldLabel}"/>
-                                                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding ColorHex, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <TextBox Text="{Binding ColorHex, UpdateSourceTrigger=PropertyChanged}"/>
                                                     </StackPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="快捷键（H08 复判）" Style="{StaticResource FieldLabel}"/>
-                                                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding Shortcut, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <TextBox Text="{Binding Shortcut, UpdateSourceTrigger=PropertyChanged}"/>
                                                     </StackPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="备注 / Note" Style="{StaticResource FieldLabel}"/>
-                                                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}"/>
                                                     </StackPanel>
                                                     <StackPanel Style="{StaticResource FieldItem}">
                                                         <TextBlock Text="数量" Style="{StaticResource FieldLabel}"/>
-                                                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <hc:NumericUpDown Value="{Binding Quantity, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                                     </StackPanel>
                                                 </WrapPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
@@ -200,13 +188,13 @@
                         <WrapPanel>
                             <StackPanel Margin="0,0,6,0">
                                 <TextBlock Text="X（列）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Width="70" Style="{StaticResource FieldBox}" Text="{Binding JumpX}"
-                                         AutomationProperties.AutomationId="FieldMapJumpX"/>
+                                <hc:NumericUpDown Width="70" Value="{Binding JumpX, Converter={StaticResource StringToDouble}}"
+                                         AutomationProperties.AutomationId="FieldMapJumpX" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,6,0">
                                 <TextBlock Text="Y（行）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Width="70" Style="{StaticResource FieldBox}" Text="{Binding JumpY}"
-                                         AutomationProperties.AutomationId="FieldMapJumpY"/>
+                                <hc:NumericUpDown Width="70" Value="{Binding JumpY, Converter={StaticResource StringToDouble}}"
+                                         AutomationProperties.AutomationId="FieldMapJumpY" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                             </StackPanel>
                             <Button Content="X/Y 跳转" Style="{StaticResource GhostButton}" VerticalAlignment="Bottom" Height="28"
                                     Command="{Binding JumpToDieCommand}" AutomationProperties.AutomationId="BtnMapJump"/>
@@ -220,7 +208,7 @@
                 <StackPanel>
                     <WrapPanel>
                         <TextBlock Text="快捷键验证（AC-H05-02）：" VerticalAlignment="Center" Style="{StaticResource KeyText}"/>
-                        <TextBox Width="110" Style="{StaticResource FieldBox}" Text="{Binding ShortcutKey}"
+                        <TextBox Width="110" Text="{Binding ShortcutKey}"
                                  AutomationProperties.AutomationId="FieldShortcutKey"/>
                         <Button Content="验证" Style="{StaticResource GhostButton}" Margin="8,0,0,0"
                                 Command="{Binding VerifyShortcutCommand}" AutomationProperties.AutomationId="BtnVerifyShortcut"/>

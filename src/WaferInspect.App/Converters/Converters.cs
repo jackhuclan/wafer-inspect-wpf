@@ -33,4 +33,30 @@ public sealed class NonEmptyToVisibilityConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
+    }
+
+/// <summary>字符串 ↔ double? 转换：用于把字符串型 VM 数值属性绑定到 HandyControl 的 NumericUpDown.Value。
+/// 健壮处理 null / 空 / 非数字（回退 0），往返均保持字符串或 double 语义。</summary>
+public sealed class StringToDoubleConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is double d) return d;
+        if (value is int i) return (double)i;
+        if (value is string s && double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var r))
+            return r;
+        return 0d;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        // 非 null 的 double? 装箱后为 double；null 的 double? 装箱为 null。
+        double v = value is double d ? d : 0d;
+
+        if (targetType == typeof(string))
+            return v.ToString(CultureInfo.InvariantCulture);
+        if (targetType == typeof(int))
+            return (int)Math.Round(v);
+        return v;
+    }
 }

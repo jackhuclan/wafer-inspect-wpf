@@ -1,4 +1,4 @@
-<UserControl x:Class="WaferInspectHMI.Views.RecipeView"
+<UserControl xmlns:hc="https://handyorg.github.io/handycontrol" x:Class="WaferInspectHMI.Views.RecipeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              FontFamily="Segoe UI, Microsoft YaHei">
@@ -8,18 +8,6 @@
             <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Foreground" Value="{StaticResource Text3}"/>
             <Setter Property="Margin" Value="0,0,0,3"/>
-        </Style>
-        <Style x:Key="FieldBox" TargetType="TextBox">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="8,0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="FontSize" Value="12.5"/>
-        </Style>
-        <Style x:Key="FieldCombo" TargetType="ComboBox">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="6,0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="FontSize" Value="12.5"/>
         </Style>
     </UserControl.Resources>
 
@@ -104,34 +92,34 @@
 
                             <StackPanel Grid.Row="0" Grid.Column="0">
                                 <TextBlock Text="名称 *（F-3.2.1-06）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormName, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Text="{Binding FormName, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.AutomationId="FieldJobName"/>
                             </StackPanel>
                             <StackPanel Grid.Row="0" Grid.Column="2">
                                 <TextBlock Text="晶圆类型 *（BR-16，默认有图案有 Mark）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding PatternTypeOptions}"
+                                <hc:ComboBox ItemsSource="{Binding PatternTypeOptions}"
                                           SelectedItem="{Binding FormPatternType, Mode=TwoWay}" AutomationProperties.AutomationId="FieldPatternType"/>
                             </StackPanel>
 
                             <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0">
                                 <TextBlock Text="晶圆尺寸 *（F-3.2.1-08）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding SizeOptions}"
+                                <hc:ComboBox ItemsSource="{Binding SizeOptions}"
                                           SelectedItem="{Binding FormSize, Mode=TwoWay}" AutomationProperties.AutomationId="FieldWaferSize"/>
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,0,0">
                                 <TextBlock Text="晶圆材料（固定 Si，级 C 保留）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormMaterial}" IsReadOnly="True"
+                                <TextBox Text="{Binding FormMaterial}" IsReadOnly="True"
                                          Foreground="{StaticResource Text3}" AutomationProperties.AutomationId="FieldMaterial"/>
                             </StackPanel>
 
                             <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
                                 <TextBlock Text="晶圆厚度 mm（当前版本未启用，级 C 保留）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormThickness}" IsEnabled="False"
-                                         AutomationProperties.AutomationId="FieldThickness"/>
+                                <hc:NumericUpDown Value="{Binding FormThickness, Converter={StaticResource StringToDouble}}" IsEnabled="False"
+                                         AutomationProperties.AutomationId="FieldThickness" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
                                 <TextBlock Text="回溯图存储（BR-15：覆盖系统全局开关）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding TraceImageOptions}"
+                                <hc:ComboBox ItemsSource="{Binding TraceImageOptions}"
                                           SelectedItem="{Binding FormTraceImage, Mode=TwoWay}" AutomationProperties.AutomationId="FieldTraceImage"/>
                             </StackPanel>
                         </Grid>
@@ -146,17 +134,17 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Die X mm（Map 自动加载，可手动）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormDieX, UpdateSourceTrigger=PropertyChanged}"
-                                         AutomationProperties.AutomationId="FieldDieX"/>
+                                <hc:NumericUpDown Value="{Binding FormDieX, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                         AutomationProperties.AutomationId="FieldDieX" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Die Y mm *（F-3.2.1-12）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormDieY, UpdateSourceTrigger=PropertyChanged}"
-                                         AutomationProperties.AutomationId="FieldDieY"/>
+                                <hc:NumericUpDown Value="{Binding FormDieY, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                         AutomationProperties.AutomationId="FieldDieY" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                             </StackPanel>
                             <StackPanel Grid.Column="4">
                                 <TextBlock Text="Notch 方向 °（BR-17 默认 270）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormNotch, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Text="{Binding FormNotch, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.AutomationId="FieldNotch"/>
                             </StackPanel>
                         </Grid>
@@ -176,12 +164,12 @@
 
                             <StackPanel Grid.Row="0" Grid.Column="0">
                                 <TextBlock Text="图谱选择 *（H05 MapType）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding MapTypeNames}"
+                                <hc:ComboBox ItemsSource="{Binding MapTypeNames}"
                                           SelectedItem="{Binding FormMapType, Mode=TwoWay}" AutomationProperties.AutomationId="FieldMapType"/>
                             </StackPanel>
                             <StackPanel Grid.Row="0" Grid.Column="2">
                                 <TextBlock Text="Map 文件类型 *（BR-78 必须与格式匹配）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding MapFileTypeOptions}"
+                                <hc:ComboBox ItemsSource="{Binding MapFileTypeOptions}"
                                           SelectedItem="{Binding FormMapFileType, Mode=TwoWay}" AutomationProperties.AutomationId="FieldMapFileType"/>
                             </StackPanel>
 
@@ -191,7 +179,7 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Style="{StaticResource FieldBox}" Text="{Binding FormMapPath, UpdateSourceTrigger=PropertyChanged}"
+                                    <TextBox Grid.Column="0" Text="{Binding FormMapPath, UpdateSourceTrigger=PropertyChanged}"
                                              AutomationProperties.AutomationId="FieldMapPath"/>
                                     <Button Grid.Column="1" Content="浏览" Style="{StaticResource GhostButton}" Width="60" Height="30" Margin="6,0,0,0"
                                             Command="{Binding BrowseMapFileCommand}" AutomationProperties.AutomationId="BtnJobBrowseMap"/>
@@ -202,18 +190,18 @@
 
                             <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
                                 <TextBlock Text="列方向（F-3.2.1-16）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding DirectionOptions}"
+                                <hc:ComboBox ItemsSource="{Binding DirectionOptions}"
                                           SelectedItem="{Binding FormColumnDirection, Mode=TwoWay}" AutomationProperties.AutomationId="FieldColumnDir"/>
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
                                 <TextBlock Text="行方向（F-3.2.1-16）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding DirectionOptions}"
+                                <hc:ComboBox ItemsSource="{Binding DirectionOptions}"
                                           SelectedItem="{Binding FormRowDirection, Mode=TwoWay}" AutomationProperties.AutomationId="FieldRowDir"/>
                             </StackPanel>
 
                             <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,8,0,0">
                                 <TextBlock Text="条码分类代码 *（F-3.2.1-18：1=良品、2=缺陷品…）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormBarcode, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Text="{Binding FormBarcode, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.AutomationId="FieldBarcode"/>
                             </StackPanel>
                         </Grid>
@@ -228,17 +216,17 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="OCR Job（F-3.2.1-19）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormOcrJob, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Text="{Binding FormOcrJob, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.AutomationId="FieldOcrJob"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="识别角度 °（F-3.2.1-20）" Style="{StaticResource FieldLabel}"/>
-                                <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormOcrAngle, UpdateSourceTrigger=PropertyChanged}"
-                                         AutomationProperties.AutomationId="FieldOcrAngle"/>
+                                <hc:NumericUpDown Value="{Binding FormOcrAngle, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                         AutomationProperties.AutomationId="FieldOcrAngle" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                             </StackPanel>
                             <StackPanel Grid.Column="4">
                                 <TextBlock Text="OCR 位置（F-3.2.1-21）" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox Style="{StaticResource FieldCombo}" ItemsSource="{Binding OcrPositionOptions}"
+                                <hc:ComboBox ItemsSource="{Binding OcrPositionOptions}"
                                           SelectedItem="{Binding FormOcrPosition, Mode=TwoWay}" AutomationProperties.AutomationId="FieldOcrPosition"/>
                             </StackPanel>
                         </Grid>
@@ -257,46 +245,46 @@
 
                                 <StackPanel Grid.Row="0" Grid.Column="0">
                                     <TextBlock Text="定位 Die X（F-3.2.1-22）" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormLocateDieX, UpdateSourceTrigger=PropertyChanged}"
-                                             AutomationProperties.AutomationId="FieldLocateDieX"/>
+                                    <hc:NumericUpDown Value="{Binding FormLocateDieX, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                             AutomationProperties.AutomationId="FieldLocateDieX" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                 </StackPanel>
                                 <StackPanel Grid.Row="0" Grid.Column="2">
                                     <TextBlock Text="定位 Die Y（F-3.2.1-22）" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormLocateDieY, UpdateSourceTrigger=PropertyChanged}"
-                                             AutomationProperties.AutomationId="FieldLocateDieY"/>
+                                    <hc:NumericUpDown Value="{Binding FormLocateDieY, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                             AutomationProperties.AutomationId="FieldLocateDieY" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0">
                                     <TextBlock Text="方向（F-3.2.1-23）" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormOrientation, UpdateSourceTrigger=PropertyChanged}"
+                                    <TextBox Text="{Binding FormOrientation, UpdateSourceTrigger=PropertyChanged}"
                                              AutomationProperties.AutomationId="FieldOrientation"/>
                                 </StackPanel>
                                 <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,0,0">
                                     <TextBlock Text="列偏移 / 行偏移（F-3.2.1-24）" Style="{StaticResource FieldLabel}"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Style="{StaticResource FieldBox}" Text="{Binding FormColumnOffset, UpdateSourceTrigger=PropertyChanged}"
-                                                 AutomationProperties.AutomationId="FieldColumnOffset"/>
-                                        <TextBox Grid.Column="2" Style="{StaticResource FieldBox}" Text="{Binding FormRowOffset, UpdateSourceTrigger=PropertyChanged}"
-                                                 AutomationProperties.AutomationId="FieldRowOffset"/>
+                                        <hc:NumericUpDown Grid.Column="0" Value="{Binding FormColumnOffset, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                                 AutomationProperties.AutomationId="FieldColumnOffset" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
+                                        <hc:NumericUpDown Grid.Column="2" Value="{Binding FormRowOffset, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                                 AutomationProperties.AutomationId="FieldRowOffset" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                     </Grid>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
                                     <TextBlock Text="Col/Row（F-3.2.1-25）" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormColRow, UpdateSourceTrigger=PropertyChanged}"
-                                             AutomationProperties.AutomationId="FieldColRow"/>
+                                    <hc:NumericUpDown Value="{Binding FormColRow, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                             AutomationProperties.AutomationId="FieldColRow" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                 </StackPanel>
                                 <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
                                     <TextBlock Text="X/Y（F-3.2.1-26）" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormXy, UpdateSourceTrigger=PropertyChanged}"
-                                             AutomationProperties.AutomationId="FieldXy"/>
+                                    <hc:NumericUpDown Value="{Binding FormXy, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                             AutomationProperties.AutomationId="FieldXy" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,0">
                                     <TextBlock Text="Include/Exclude（F-3.2.1-27）" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Style="{StaticResource FieldBox}" Text="{Binding FormIncludeExclude, UpdateSourceTrigger=PropertyChanged}"
-                                             AutomationProperties.AutomationId="FieldIncludeExclude"/>
+                                    <hc:NumericUpDown Value="{Binding FormIncludeExclude, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDouble}}"
+                                             AutomationProperties.AutomationId="FieldIncludeExclude" Minimum="-100000" Maximum="1000000" DecimalPlaces="2"/>
                                 </StackPanel>
                             </Grid>
                         </Expander>

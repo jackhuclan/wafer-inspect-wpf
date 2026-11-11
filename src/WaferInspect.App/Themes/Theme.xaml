@@ -5,6 +5,7 @@
     <local:BoolToVisibilityConverter x:Key="BoolVis"/>
     <local:BoolToCollapsedConverter x:Key="BoolCollapsed"/>
     <local:NonEmptyToVisibilityConverter x:Key="NonEmptyVis"/>
+    <local:StringToDoubleConverter x:Key="StringToDouble"/>
 
     <!-- ============ 语义色板：深色 chrome + 浅色数据画布 ============ -->
     <SolidColorBrush x:Key="Chrome" Color="#0D1826"/>
@@ -30,6 +31,44 @@
     <SolidColorBrush x:Key="WarnSoft" Color="#FFF3E0"/>
     <SolidColorBrush x:Key="Danger" Color="#C62828"/>
     <SolidColorBrush x:Key="DangerSoft" Color="#FDECEC"/>
+
+    <!-- ============ 全局文本框：统一圆角边框（隐式样式，自动覆盖所有 TextBox） ============ -->
+    <Style TargetType="TextBox">
+        <Setter Property="BorderBrush" Value="{StaticResource LineStrong}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="{StaticResource Surface}"/>
+        <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+        <Setter Property="Padding" Value="9,5"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost" Background="Transparent" BorderThickness="0"
+                                      Margin="0" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="1.5"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Surface2}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Line}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
     <FontFamily x:Key="Mono">Cascadia Mono, Consolas, Courier New</FontFamily>
 
@@ -409,9 +448,12 @@
         <Setter Property="AutoGenerateColumns" Value="False"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
         <Setter Property="GridLinesVisibility" Value="None"/>
-        <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="RowBackground" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+        <Setter Property="Background" Value="{StaticResource Surface}"/>
+        <Setter Property="RowBackground" Value="{StaticResource Surface}"/>
+        <Setter Property="AlternationCount" Value="2"/>
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource Surface2}"/>
         <Setter Property="RowHeight" Value="38"/>
         <Setter Property="CanUserAddRows" Value="False"/>
         <Setter Property="CanUserDeleteRows" Value="False"/>

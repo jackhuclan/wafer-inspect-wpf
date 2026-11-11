@@ -228,6 +228,7 @@ WPF 实现约定（0.6.0 起，源于实测踩坑）：
   鼠标点击等价，勿再新增仅依赖 Command 的导航路径；
 - **`<Run Text="{Binding ...}"/>` 必须显式写 `Mode=OneWay`**（1.0.0 实测踩坑）：`Run.Text`
   默认 TwoWay，绑定只读属性会抛 `XamlParseException`，且异常在布局阶段反复抛出；
+- **全局 / 隐式样式必须置于其所引用资源之后**（1.10.1 实测踩坑）：`Theme.xaml` 合并进 `App.Resources` 在 `App.InitializeComponent()` 解析，早于 `OnStartup` 与任何窗口；全局隐式 `TextBox` 样式若用 `{StaticResource ...}` 引用定义在文件靠后的画刷（如 `LineStrong`/`Surface`），`StaticResource` 不允许前向引用会抛 `XamlParseException`，且该异常发生在 `App` 构造期（dispatcher 循环尚未建立），`OnDispatcherUnhandledException` 不触发、进程静默退出、无窗口、无日志；新建全局 / 隐式样式务必排在被引用资源之后（隐式样式按类型查找，位置不影响命中）；
 - **界面异常处理器不得同步弹 MessageBox**（1.0.0 实测踩坑）：同步 `MessageBox.Show` 开启嵌套
   消息循环，同一异常反复进入 `DispatcherUnhandledException` 最终导致 0xC00000FD 栈溢出；
   当前实现为「先写 `ui-error.log` + `Dispatcher.BeginInvoke` 异步弹窗」；
